@@ -28,9 +28,11 @@ Thumbs.db
 # Test / tool artifacts
 .playwright-mcp/
 *.png
+!build/icon.png
 *.db
 
 # Temp / junk
 0
+0)
 t.id
 true)
