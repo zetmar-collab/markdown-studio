@@ -5,6 +5,7 @@ node_modules/
 dist/
 dist-electron/
 release/
+out/
 
 # Vite cache
 .vite/
@@ -29,6 +30,7 @@ Thumbs.db
 .playwright-mcp/
 *.png
 !build/icon.png
+!public/app-icon.png
 *.db
 
 # Temp / junk

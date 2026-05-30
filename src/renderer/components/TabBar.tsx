@@ -1,6 +1,8 @@
 import React from "react";
-import { Plus, X } from "lucide-react";
+import { X } from "lucide-react";
 import type { Tab } from "../renderer-types";
+import { TemplateMenu } from "./TemplateMenu";
+import type { DocumentTemplateId } from "../constants";
 
 interface TabBarProps {
   tabs:       Tab[];
@@ -8,9 +10,10 @@ interface TabBarProps {
   onSwitch:   (id: string) => void;
   onClose:    (id: string) => void;
   onNew:      () => void;
+  onNewTemplate: (id: DocumentTemplateId) => void;
 }
 
-export function TabBar({ tabs, activeId, onSwitch, onClose, onNew }: TabBarProps) {
+export function TabBar({ tabs, activeId, onSwitch, onClose, onNew, onNewTemplate }: TabBarProps) {
   return (
     <div className="tabbar" role="tablist">
       <div className="tab-list">
@@ -21,6 +24,12 @@ export function TabBar({ tabs, activeId, onSwitch, onClose, onNew }: TabBarProps
             aria-selected={tab.id === activeId}
             className={`tab${tab.id === activeId ? " active" : ""}`}
             onClick={() => onSwitch(tab.id)}
+            onMouseDown={(e) => {
+              if (e.button === 1) {
+                e.preventDefault();
+                onClose(tab.id);
+              }
+            }}
             title={tab.filePath ?? tab.fileName}
           >
             <span className="tab-name">{tab.fileName}</span>
@@ -36,14 +45,7 @@ export function TabBar({ tabs, activeId, onSwitch, onClose, onNew }: TabBarProps
           </div>
         ))}
       </div>
-      <button
-        className="tab-new"
-        onClick={onNew}
-        title="Nowa zakładka (Ctrl+T)"
-        aria-label="Nowa zakładka"
-      >
-        <Plus size={14} />
-      </button>
+      <TemplateMenu onNewBlank={onNew} onNewTemplate={onNewTemplate} />
     </div>
   );
 }

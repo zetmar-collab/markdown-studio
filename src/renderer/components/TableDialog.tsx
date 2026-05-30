@@ -1,25 +1,15 @@
 import React, { useEffect, useMemo, useState } from "react";
-
-type Align = "left" | "center" | "right";
+import { generateTable, type TableAlign } from "../utils/tableMarkdown";
 
 interface TableDialogProps {
   onInsert: (markdown: string) => void;
   onClose: () => void;
 }
 
-function generateTable(cols: number, rows: number, align: Align): string {
-  const sepMap: Record<Align, string> = { left: " --- ", center: " :---: ", right: " ---: " };
-  const sep = sepMap[align];
-  const header  = "|" + Array.from({ length: cols }, (_, i) => ` Kolumna ${i + 1} `).join("|") + "|";
-  const divider = "|" + Array(cols).fill(sep).join("|") + "|";
-  const dataRow = "|" + Array(cols).fill("   ").join("|") + "|";
-  return "\n" + [header, divider, ...Array(rows).fill(dataRow)].join("\n") + "\n";
-}
-
 export function TableDialog({ onInsert, onClose }: TableDialogProps) {
   const [cols, setCols] = useState(3);
   const [rows, setRows] = useState(3);
-  const [align, setAlign] = useState<Align>("left");
+  const [align, setAlign] = useState<TableAlign>("left");
 
   const preview = useMemo(() => generateTable(cols, rows, align).trim(), [cols, rows, align]);
 
@@ -65,7 +55,7 @@ export function TableDialog({ onInsert, onClose }: TableDialogProps) {
         <div className="modal-field">
           <label>Wyrównanie kolumn</label>
           <div className="modal-align-group">
-            {(["left", "center", "right"] as Align[]).map((a) => (
+            {(["left", "center", "right"] as TableAlign[]).map((a) => (
               <button
                 key={a}
                 className={align === a ? "active" : ""}

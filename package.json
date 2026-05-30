@@ -1,18 +1,33 @@
 {
   "name": "markdown-studio",
-  "version": "0.1.0",
-  "description": "Desktopowy czytnik i edytor Markdown dla Windows z eksportem PDF i DOCX.",
-  "main": "dist-electron/main.js",
+  "version": "0.2.0",
+  "description": "Desktopowy edytor i podgląd Markdown dla Windows z eksportem PDF, HTML i DOCX.",
+  "main": "dist-electron/main/main.js",
   "author": "Marek",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zetmar-collab/markdown-studio.git"
+  },
+  "homepage": "https://github.com/zetmar-collab/markdown-studio#readme",
+  "bugs": {
+    "url": "https://github.com/zetmar-collab/markdown-studio/issues"
+  },
   "type": "module",
   "scripts": {
+    "icon": "node scripts/make-icon.mjs",
+    "predev": "npm run icon",
+    "prebuild": "npm run icon",
     "dev": "concurrently -k \"vite\" \"npm:dev:electron\"",
     "dev:electron": "wait-on http://localhost:5173 && npm run build:electron && electron .",
     "build": "npm run typecheck && vite build && npm run build:electron",
     "build:electron": "tsc -p tsconfig.electron.json",
     "typecheck": "tsc --noEmit",
-    "dist": "npm run build && electron-builder --win nsis portable"
+    "test": "vitest run",
+    "predist": "node scripts/stop-running-app.mjs",
+    "dist": "npm run build && electron-builder --win nsis portable",
+    "dist:setup": "npm run build && electron-builder --win nsis",
+    "dist:portable": "npm run build && electron-builder --win portable"
   },
   "dependencies": {
     "@codemirror/lang-markdown": "^6.4.0",
@@ -22,8 +37,11 @@
     "@codemirror/view": "^6.38.8",
     "@uiw/react-codemirror": "^4.25.3",
     "highlight.js": "^11.11.1",
+    "html-to-docx": "^1.8.0",
     "lucide-react": "^0.561.0",
     "markdown-it": "^14.1.0",
+    "markdown-it-anchor": "^9.2.0",
+    "markdown-it-task-lists": "^2.1.1",
     "react": "^19.2.1",
     "react-dom": "^19.2.1"
   },
@@ -35,36 +53,92 @@
     "concurrently": "^9.2.1",
     "electron": "^42.2.0",
     "electron-builder": "^26.8.1",
+    "png-to-ico": "^2.1.8",
     "typescript": "^5.9.3",
     "vite": "^7.2.7",
+    "vitest": "^4.1.7",
     "wait-on": "^9.0.3"
   },
   "build": {
     "appId": "pl.marek.markdownstudio",
     "productName": "Markdown Studio",
-    "icon": "build/icon.png",
+    "icon": "build/icon.ico",
     "directories": {
-      "output": "release"
+      "output": "out/pack"
     },
     "files": [
       "dist/**",
       "dist-electron/**",
       "package.json"
     ],
+    "extraResources": [
+      {
+        "from": "build/icon.ico",
+        "to": "build/icon.ico"
+      },
+      {
+        "from": "build/icon.png",
+        "to": "build/icon.png"
+      }
+    ],
     "win": {
-      "icon": "build/icon.png",
+      "icon": "build/icon.ico",
       "signAndEditExecutable": false,
       "target": [
         "nsis",
         "portable"
-      ]
+      ],
+      "artifactName": "Markdown-Studio-${version}-${arch}.${ext}"
     },
+    "portable": {
+      "artifactName": "Markdown-Studio-${version}-Portable-${arch}.exe"
+    },
+    "fileAssociations": [
+      {
+        "ext": "md",
+        "name": "MarkdownDocument",
+        "description": "Dokument Markdown",
+        "role": "Editor",
+        "icon": "build/icon.ico"
+      },
+      {
+        "ext": "markdown",
+        "name": "MarkdownDocumentAlt",
+        "description": "Dokument Markdown",
+        "role": "Editor",
+        "icon": "build/icon.ico"
+      },
+      {
+        "ext": "mdown",
+        "name": "MarkdownMdown",
+        "description": "Dokument Markdown",
+        "role": "Editor",
+        "icon": "build/icon.ico"
+      },
+      {
+        "ext": "mkd",
+        "name": "MarkdownMkd",
+        "description": "Dokument Markdown",
+        "role": "Editor",
+        "icon": "build/icon.ico"
+      }
+    ],
     "nsis": {
+      "artifactName": "Markdown-Studio-${version}-Setup-${arch}.exe",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Markdown Studio"
+      "shortcutName": "Markdown Studio",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "uninstallDisplayName": "Markdown Studio",
+      "menuCategory": "Markdown Studio",
+      "perMachine": false,
+      "allowElevation": true,
+      "installerLanguages": ["pl_PL", "en_US"],
+      "include": "build/installer.nsh"
     }
   }
 }

@@ -78,7 +78,7 @@ export function Toolbar({
   return (
     <header className="topbar">
       <div className="brand">
-        <div className="brand-mark">M</div>
+        <img src="/app-icon.png" alt="" className="brand-mark-img" width={38} height={38} />
         <div>
           <h1>Markdown Studio</h1>
           <span title={filePath ?? undefined}>{fileName}{dirty ? " • niezapisane" : ""}</span>

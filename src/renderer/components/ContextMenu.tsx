@@ -8,11 +8,13 @@ interface ContextMenuProps {
   onCopy: () => void;
   onPaste: () => void;
   onExportPdf: () => void;
+  onExportHtml: () => void;
   onExportDocx: () => void;
+  onPrint: () => void;
   onClose: () => void;
 }
 
-export function ContextMenu({ x, y, onSave, onCopy, onPaste, onExportPdf, onExportDocx, onClose }: ContextMenuProps) {
+export function ContextMenu({ x, y, onSave, onCopy, onPaste, onExportPdf, onExportHtml, onExportDocx, onPrint, onClose }: ContextMenuProps) {
   return (
     <div
       className="context-menu"
@@ -33,8 +35,14 @@ export function ContextMenu({ x, y, onSave, onCopy, onPaste, onExportPdf, onExpo
       <button role="menuitem" onClick={onExportPdf}>
         <FileDown size={16} /><span>Eksportuj do PDF</span>
       </button>
-      <button role="menuitem" onClick={onExportDocx}>
+      <button role="menuitem" onClick={onExportHtml}>
         <FileDown size={16} /><span>Eksportuj do HTML</span>
+      </button>
+      <button role="menuitem" onClick={onExportDocx}>
+        <FileDown size={16} /><span>Eksportuj do DOCX</span>
+      </button>
+      <button role="menuitem" onClick={onPrint}>
+        <FileDown size={16} /><span>Podgląd wydruku…</span>
       </button>
       <div className="context-separator" />
       <button role="menuitem" onClick={onClose}>
