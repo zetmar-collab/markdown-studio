@@ -25,9 +25,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "predist": "node scripts/stop-running-app.mjs",
-    "dist": "npm run build && electron-builder --win nsis portable",
-    "dist:setup": "npm run build && electron-builder --win nsis",
-    "dist:portable": "npm run build && electron-builder --win portable"
+    "dist": "npm run build && electron-builder --win nsis portable --publish never",
+    "dist:setup": "npm run build && electron-builder --win nsis --publish never",
+    "dist:portable": "npm run build && electron-builder --win portable --publish never"
   },
   "dependencies": {
     "@codemirror/lang-markdown": "^6.4.0",
