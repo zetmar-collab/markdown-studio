@@ -9,8 +9,8 @@ const execFileAsync = promisify(execFile);
 const PROG_ID = "MarkdownStudio.md";
 const MARKDOWN_EXTS = [".md", ".markdown", ".mdown", ".mkd"];
 
-function regArgs(...parts: string[]) {
-  return ["reg", "add", ...parts, "/f"];
+function regAddArgs(...parts: string[]) {
+  return ["add", ...parts, "/f"];
 }
 
 /** Registers Markdown Studio as a handler for .md (current user, HKCU). */
@@ -28,14 +28,14 @@ export async function registerMarkdownHandlers(): Promise<{ ok: boolean; message
   const iconRef = `"${exe}",0`;
 
   try {
-    await execFileAsync("reg", regArgs(`HKCU\\Software\\Classes\\${PROG_ID}`, "/ve", "/d", "Markdown Studio"));
+    await execFileAsync("reg", regAddArgs(`HKCU\\Software\\Classes\\${PROG_ID}`, "/ve", "/d", "Markdown Studio"));
     await execFileAsync(
       "reg",
-      regArgs(`HKCU\\Software\\Classes\\${PROG_ID}\\DefaultIcon`, "/ve", "/d", iconRef)
+      regAddArgs(`HKCU\\Software\\Classes\\${PROG_ID}\\DefaultIcon`, "/ve", "/d", iconRef)
     );
     await execFileAsync(
       "reg",
-      regArgs(
+      regAddArgs(
         `HKCU\\Software\\Classes\\${PROG_ID}\\shell\\open\\command`,
         "/ve",
         "/d",
@@ -45,7 +45,7 @@ export async function registerMarkdownHandlers(): Promise<{ ok: boolean; message
 
     for (const ext of MARKDOWN_EXTS) {
       const key = ext.startsWith(".") ? ext.slice(1) : ext;
-      await execFileAsync("reg", regArgs(`HKCU\\Software\\Classes\\.${key}`, "/ve", "/d", PROG_ID));
+      await execFileAsync("reg", regAddArgs(`HKCU\\Software\\Classes\\.${key}`, "/ve", "/d", PROG_ID));
     }
 
     return {

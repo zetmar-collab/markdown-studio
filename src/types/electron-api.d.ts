@@ -46,7 +46,7 @@ export interface ElectronApi {
   saveFileAs: (payload: SavePayload) => Promise<MarkdownFile | null>;
   readClipboardText: () => string;
   writeClipboardText: (text: string) => void;
-  writeClipboardRich: (payload: { html: string; text: string }) => void;
+  writeClipboardRich: (payload: { html: string; text: string }) => Promise<void>;
   embedImagesInHtml: (html: string, filePath: string | null) => Promise<string>;
   exportPdf: (payload: ExportPayload) => Promise<ExportResult | null>;
   exportHtml: (payload: ExportPayload) => Promise<ExportResult | null>;

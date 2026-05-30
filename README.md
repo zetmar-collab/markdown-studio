@@ -3,7 +3,7 @@
 Desktopowy edytor i podgląd Markdown dla Windows.  
 Zbudowany na Electron 42 + React 19 + CodeMirror 6.
 
-![Markdown Studio](https://img.shields.io/badge/version-0.2.0-blue) ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey) ![License](https://img.shields.io/badge/license-MIT-green)
+![Markdown Studio](https://img.shields.io/badge/version-0.2.1-blue) ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey) ![License](https://img.shields.io/badge/license-MIT-green)
 
 **Repozytorium:** [github.com/zetmar-collab/markdown-studio](https://github.com/zetmar-collab/markdown-studio)
 
@@ -66,18 +66,19 @@ $env:ELECTRON_DEVTOOLS="1"; npm run dev
 ### Build lokalny
 
 ```bash
-npm run dist          # instalator + portable → out/pack/
+npm run dist          # to samo co dist:all (setup + portable)
+npm run dist:all      # instalator + portable → out/pack/
 npm run dist:setup    # tylko instalator NSIS
 npm run dist:portable # tylko wersja portable
 ```
 
-Przed `npm run dist` zamknij uruchomioną aplikację z `out/pack/` (skrypt `predist` próbuje ją zamknąć automatycznie).
+Przed buildem skrypt zamyka Markdown Studio i czyści `out/pack/win-unpacked`. Jeśli build padnie na `app.asar` — zamknij program i Eksplorator w `out/pack/`, potem powtórz komendę.
 
 ### Release na GitHub
 
 ```bash
-git tag v0.2.0
-git push origin v0.2.0
+git tag v0.2.1
+git push origin v0.2.1
 ```
 
 Workflow `.github/workflows/release.yml` zbuduje instalatory i dołączy je do GitHub Release.

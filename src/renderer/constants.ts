@@ -1,4 +1,4 @@
-export const APP_VERSION = "0.2.0";
+export const APP_VERSION = "0.2.1";
 
 export const MARKDOWN_EXTENSIONS = ["md", "markdown", "mdown", "mkd"] as const;
 

@@ -45,7 +45,8 @@ import { useMarkdownPreview } from "./hooks/useMarkdownPreview";
 import { useScrollSync } from "./hooks/useScrollSync";
 import { useEditorActions } from "./hooks/useEditorActions";
 import { useExport } from "./hooks/useExport";
-import { buildPreviewClipboardPayload } from "./utils/previewClipboard";
+import { buildPreviewClipboardPayload, getPreviewCopySelection } from "./utils/previewClipboard";
+import { writeClipboardRich, writeClipboardText } from "./utils/clipboard";
 import { getDocStats } from "./utils/markdownRenderer";
 import { MARKDOWN_EXTENSIONS } from "./constants";
 type ContextTarget = "editor" | "preview";
@@ -97,9 +98,10 @@ function App() {
         ".cm-scroller": { fontFamily: "\"Cascadia Code\", Consolas, monospace" },
         ".cm-content": { padding: "18px" },
         ".cm-line": { lineHeight: "1.65" }
-      })
+      }),
+      ...editor.clipboardExtension
     ],
-    []
+    [editor.clipboardExtension]
   );
 
   useEffect(() => {
@@ -166,10 +168,13 @@ function App() {
         fm.closeTab(fm.activeId);
         break;
       case "copy":
-        copyFromContext();
+        void copyFromContext();
         break;
       case "paste":
-        editor.pasteFromClipboard();
+        void pasteFromContext();
+        break;
+      case "cut":
+        void editor.cutSelection();
         break;
       case "viewSplit":
         setViewMode("split");
@@ -300,17 +305,40 @@ function App() {
   }, [fm]);
 
   async function copyPreviewSelection() {
-    const payload = await buildPreviewClipboardPayload(previewRef.current, theme, filePath);
-    if (!payload.ok) {
-      if (payload.reason === "empty") setStatus("Podgląd jest pusty — nic do skopiowania");
-      return;
+    const part = getPreviewCopySelection(previewRef.current);
+    if (!part.ok) {
+      if (part.reason === "empty") setStatus("Podgląd jest pusty — nic do skopiowania");
+      return false;
     }
-    window.markdownStudio.writeClipboardRich({ html: payload.html!, text: payload.text! });
+
+    try {
+      const payload = await buildPreviewClipboardPayload(previewRef.current, theme, filePath);
+      if (payload.ok && payload.html) {
+        const ok = await writeClipboardRich({ html: payload.html, text: payload.text! });
+        if (ok) {
+          setStatus(
+            payload.scope === "selection"
+              ? "Skopiowano zaznaczenie z podglądu (z formatowaniem)"
+              : "Skopiowano cały podgląd (z formatowaniem)"
+          );
+          return true;
+        }
+      }
+    } catch {
+      /* fallback do zwykłego tekstu */
+    }
+
+    const ok = writeClipboardText(part.text!);
+    if (!ok) {
+      setStatus("Nie udało się skopiować podglądu do schowka");
+      return false;
+    }
     setStatus(
-      payload.scope === "selection"
-        ? "Skopiowano zaznaczenie z podglądu (z formatowaniem)"
-        : "Skopiowano cały podgląd (z formatowaniem)"
+      part.scope === "selection"
+        ? "Skopiowano zaznaczenie z podglądu (tekst)"
+        : "Skopiowano cały podgląd (tekst)"
     );
+    return true;
   }
 
   function selectionIsInPreview() {
@@ -320,9 +348,20 @@ function App() {
     );
   }
 
-  function copyFromContext() {
-    if (contextTarget === "preview" || selectionIsInPreview()) void copyPreviewSelection();
-    else editor.copySelection();
+  async function copyFromContext() {
+    if (contextTarget === "preview" || selectionIsInPreview()) {
+      await copyPreviewSelection();
+    } else {
+      editor.copySelection();
+    }
+  }
+
+  async function pasteFromContext() {
+    if (contextTarget === "preview" || selectionIsInPreview()) {
+      setStatus("Wklejanie działa w edytorze — kliknij w panel Edytor");
+      return;
+    }
+    await editor.pasteFromClipboard();
   }
 
   function handlePreviewClick(e: React.MouseEvent<HTMLElement>) {
@@ -354,8 +393,8 @@ function App() {
     { label: "Lista numerowana", icon: <ListOrdered size={17} />, run: () => editor.prefixLine("1. ") },
     { label: "Kod", icon: <Code2 size={17} />, run: () => editor.wrapSelection("`", "`", "kod") },
     { label: "Link", icon: <Link size={17} />, run: () => editor.wrapSelection("[", "](https://)", "opis") },
-    { label: "Kopiuj", icon: <Clipboard size={17} />, run: copyFromContext },
-    { label: "Wklej", icon: <ClipboardPaste size={17} />, run: editor.pasteFromClipboard },
+    { label: "Kopiuj", icon: <Clipboard size={17} />, run: () => void copyFromContext() },
+    { label: "Wklej", icon: <ClipboardPaste size={17} />, run: () => void editor.pasteFromClipboard() },
     { label: "Grafika", icon: <ImagePlus size={17} />, run: () => setShowImageDialog(true) },
     { label: "Tabela", icon: <Table2 size={17} />, run: () => setShowTableDialog(true) }
   ];
@@ -432,7 +471,8 @@ function App() {
               highlightActiveLine: true,
               highlightSelectionMatches: true,
               lineNumbers: true,
-              searchKeymap: true
+              searchKeymap: true,
+              defaultKeymap: false
             }}
           />
         </section>
@@ -457,11 +497,8 @@ function App() {
             ref={previewRef}
             className="markdown-preview"
             dangerouslySetInnerHTML={{ __html: html }}
+            tabIndex={0}
             onClick={handlePreviewClick}
-            onCopy={(e) => {
-              e.preventDefault();
-              void copyPreviewSelection();
-            }}
           />
         </section>
       </main>
@@ -499,11 +536,11 @@ function App() {
           }}
           onCopy={() => {
             setContextMenu(null);
-            copyFromContext();
+            void copyFromContext();
           }}
           onPaste={() => {
             setContextMenu(null);
-            editor.pasteFromClipboard();
+            void pasteFromContext();
           }}
           onExportPdf={() => {
             setContextMenu(null);

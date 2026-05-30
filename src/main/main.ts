@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, dialog, ipcMain, shell, type MenuItemConstructorOptions } from "electron";
+import { app, BrowserWindow, Menu, clipboard, dialog, ipcMain, shell, type MenuItemConstructorOptions } from "electron";
 import { existsSync, readFileSync, watch, type FSWatcher } from "node:fs";
 import { dirname, basename, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -55,7 +55,7 @@ function readAppVersion(): string {
       /* ignore */
     }
   }
-  return "0.2.0";
+  return "0.2.1";
 }
 
 function showAboutDialog() {
@@ -106,6 +106,14 @@ if (!singleInstanceLock) {
   });
 }
 
+function resolvePreloadPath(): string {
+  const primary = join(__dirname, "preload.js");
+  if (existsSync(primary)) return primary;
+  const fallback = join(app.getAppPath(), "dist-electron", "main", "preload.js");
+  if (existsSync(fallback)) return fallback;
+  return primary;
+}
+
 function createWindow() {
   closeConfirmed = false;
   const icon = getAppIcon();
@@ -118,7 +126,7 @@ function createWindow() {
     icon: icon.isEmpty() ? undefined : icon,
     backgroundColor: "#101114",
     webPreferences: {
-      preload: join(__dirname, "preload.js"),
+      preload: resolvePreloadPath(),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false
@@ -294,7 +302,8 @@ function setupApplicationMenu() {
       label: "Edycja",
       submenu: [
         { label: "Kopiuj", accelerator: "CmdOrCtrl+C", click: () => sendMenuAction("copy") },
-        { label: "Wklej", accelerator: "CmdOrCtrl+V", click: () => sendMenuAction("paste") }
+        { label: "Wklej", accelerator: "CmdOrCtrl+V", click: () => sendMenuAction("paste") },
+        { label: "Wycina", accelerator: "CmdOrCtrl+X", click: () => sendMenuAction("cut") }
       ]
     },
     {
@@ -393,6 +402,35 @@ ipcMain.handle("app:newWindow", async () => {
 
 ipcMain.handle("app:closeWindow", async () => {
   mainWindow?.close();
+});
+
+function readClipboardPlainText(): string {
+  const text = clipboard.readText();
+  if (text.trim()) return text;
+  const html = clipboard.readHTML();
+  if (!html) return "";
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/\u00a0/g, " ")
+    .trim();
+}
+
+ipcMain.handle("clipboard:readText", () => readClipboardPlainText());
+
+ipcMain.handle("clipboard:writeText", (_event, text: string) => {
+  clipboard.writeText(typeof text === "string" ? text : "");
+});
+
+ipcMain.handle("clipboard:writeRich", (_event, payload: { html?: string; text?: string }) => {
+  const text = typeof payload?.text === "string" ? payload.text : "";
+  const html = typeof payload?.html === "string" ? payload.html : "";
+  if (html) {
+    clipboard.write({ text, html });
+  } else {
+    clipboard.writeText(text);
+  }
 });
 
 ipcMain.handle("app:registerDefaultMdEditor", async () => {

@@ -1,6 +1,6 @@
 {
   "name": "markdown-studio",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Desktopowy edytor i podgląd Markdown dla Windows z eksportem PDF, HTML i DOCX.",
   "main": "dist-electron/main/main.js",
   "author": "Marek",
@@ -21,13 +21,13 @@
     "dev": "concurrently -k \"vite\" \"npm:dev:electron\"",
     "dev:electron": "wait-on http://localhost:5173 && npm run build:electron && electron .",
     "build": "npm run typecheck && vite build && npm run build:electron",
-    "build:electron": "tsc -p tsconfig.electron.json",
+    "build:electron": "node scripts/clean-electron-out.mjs && tsc -p tsconfig.electron.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "predist": "node scripts/stop-running-app.mjs",
-    "dist": "npm run build && electron-builder --win nsis portable --publish never",
-    "dist:setup": "npm run build && electron-builder --win nsis --publish never",
-    "dist:portable": "npm run build && electron-builder --win portable --publish never"
+    "dist": "npm run dist:all",
+    "dist:setup": "node scripts/stop-running-app.mjs && npm run build && electron-builder --win nsis --publish never",
+    "dist:portable": "node scripts/stop-running-app.mjs && npm run build && electron-builder --win portable --publish never",
+    "dist:all": "node scripts/stop-running-app.mjs && npm run build && electron-builder --win nsis portable --publish never"
   },
   "dependencies": {
     "@codemirror/lang-markdown": "^6.4.0",
@@ -60,6 +60,7 @@
     "wait-on": "^9.0.3"
   },
   "build": {
+    "publish": null,
     "appId": "pl.marek.markdownstudio",
     "productName": "Markdown Studio",
     "icon": "build/icon.ico",
@@ -96,49 +97,26 @@
     "fileAssociations": [
       {
         "ext": "md",
-        "name": "MarkdownDocument",
+        "name": "MarkdownStudio",
         "description": "Dokument Markdown",
-        "role": "Editor",
-        "icon": "build/icon.ico"
-      },
-      {
-        "ext": "markdown",
-        "name": "MarkdownDocumentAlt",
-        "description": "Dokument Markdown",
-        "role": "Editor",
-        "icon": "build/icon.ico"
-      },
-      {
-        "ext": "mdown",
-        "name": "MarkdownMdown",
-        "description": "Dokument Markdown",
-        "role": "Editor",
-        "icon": "build/icon.ico"
-      },
-      {
-        "ext": "mkd",
-        "name": "MarkdownMkd",
-        "description": "Dokument Markdown",
-        "role": "Editor",
-        "icon": "build/icon.ico"
+        "role": "Editor"
       }
     ],
     "nsis": {
       "artifactName": "Markdown-Studio-${version}-Setup-${arch}.exe",
+      "guid": "8f4c2a1b-9e3d-4f5a-b6c7-1d2e3f4a5b6c",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Markdown Studio",
+      "runAfterFinish": true,
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
-      "installerHeaderIcon": "build/icon.ico",
       "uninstallDisplayName": "Markdown Studio",
-      "menuCategory": "Markdown Studio",
       "perMachine": false,
       "allowElevation": true,
-      "installerLanguages": ["pl_PL", "en_US"],
-      "include": "build/installer.nsh"
+      "installerLanguages": ["pl_PL", "en_US"]
     }
   }
 }

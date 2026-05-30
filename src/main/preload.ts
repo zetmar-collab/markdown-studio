@@ -13,10 +13,11 @@ contextBridge.exposeInMainWorld("markdownStudio", {
   saveFile: (payload: unknown) => ipcRenderer.invoke("file:save", payload),
   saveFileAs: (payload: unknown) => ipcRenderer.invoke("file:saveAs", payload),
   readClipboardText: () => clipboard.readText(),
-  writeClipboardText: (text: string) => clipboard.writeText(text),
-  writeClipboardRich: (payload: { html: string; text: string }) => {
-    clipboard.write({ text: payload.text, html: payload.html });
+  writeClipboardText: (text: string) => {
+    clipboard.writeText(text);
   },
+  writeClipboardRich: (payload: { html: string; text: string }) =>
+    ipcRenderer.invoke("clipboard:writeRich", payload) as Promise<void>,
   embedImagesInHtml: (html: string, filePath: string | null) =>
     ipcRenderer.invoke("html:embedImages", { html, filePath }),
   exportPdf: (payload: unknown) => ipcRenderer.invoke("export:pdf", payload),

@@ -1,6 +1,14 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
+import { EditorView, keymap } from "@codemirror/view";
+import { Prec, type Extension } from "@codemirror/state";
 import { findHeadingOffset } from "../utils/markdownRenderer";
+import {
+  copyEditorText,
+  pasteEditorText,
+  readClipboardText,
+  writeClipboardText
+} from "../utils/clipboard";
 
 export function useEditorActions(
   editorRef: React.RefObject<ReactCodeMirrorRef | null>,
@@ -17,30 +25,120 @@ export function useEditorActions(
       if (!view) return;
       const { from, to } = view.state.selection.main;
       view.dispatch({ changes: { from, to, insert: text }, selection: { anchor: from + text.length } });
+      setDirty(true);
       view.focus();
     },
-    [editorView]
+    [editorView, setDirty]
   );
 
   const copySelection = useCallback(() => {
     const view = editorView();
-    if (!view) return;
-    const sel = view.state.selection.main;
-    const text = sel.empty ? view.state.doc.toString() : view.state.doc.sliceString(sel.from, sel.to);
-    window.markdownStudio.writeClipboardText(text);
-    setStatus(sel.empty ? "Skopiowano cały dokument (Markdown)" : "Skopiowano zaznaczenie (Markdown)");
+    if (!view) return false;
     view.focus();
+    return copyEditorText(view, setStatus);
   }, [editorView, setStatus]);
 
   const pasteFromClipboard = useCallback(() => {
-    const text = window.markdownStudio.readClipboardText();
-    if (!text) {
-      setStatus("Schowek jest pusty");
-      return;
+    const view = editorView();
+    if (!view) return false;
+    view.focus();
+    return pasteEditorText(view, setStatus, () => setDirty(true));
+  }, [editorView, setDirty, setStatus]);
+
+  const cutSelection = useCallback(() => {
+    const view = editorView();
+    if (!view) return false;
+    view.focus();
+    const sel = view.state.selection.main;
+    if (sel.empty) return copySelection();
+    const text = view.state.doc.sliceString(sel.from, sel.to);
+    if (!writeClipboardText(text)) {
+      setStatus("Nie udało się wyciąć");
+      return false;
     }
-    insertAtSelection(text);
-    setStatus("Wklejono tekst ze schowka");
-  }, [insertAtSelection, setStatus]);
+    view.dispatch({ changes: { from: sel.from, to: sel.to, insert: "" }, selection: { anchor: sel.from } });
+    setDirty(true);
+    setStatus("Wycięto");
+    return true;
+  }, [copySelection, editorView, setDirty, setStatus]);
+
+  const clipboardExtension: Extension = useMemo(() => {
+    const domHandlers = EditorView.domEventHandlers({
+        copy(event, view) {
+          const sel = view.state.selection.main;
+          const text = sel.empty ? view.state.doc.toString() : view.state.sliceDoc(sel.from, sel.to);
+          if (!text) return false;
+          event.clipboardData?.setData("text/plain", text);
+          event.preventDefault();
+          writeClipboardText(text);
+          setStatus(sel.empty ? "Skopiowano cały dokument" : "Skopiowano");
+          return true;
+        },
+        paste(event, view) {
+          let text = event.clipboardData?.getData("text/plain") ?? "";
+          if (!text) text = readClipboardText();
+          if (!text) return false;
+          const { from, to } = view.state.selection.main;
+          view.dispatch({
+            changes: { from, to, insert: text },
+            selection: { anchor: from + text.length }
+          });
+          event.preventDefault();
+          setDirty(true);
+          setStatus("Wklejono");
+          return true;
+        },
+        cut(event, view) {
+          const sel = view.state.selection.main;
+          if (sel.empty) return false;
+          const text = view.state.sliceDoc(sel.from, sel.to);
+          event.clipboardData?.setData("text/plain", text);
+          event.preventDefault();
+          writeClipboardText(text);
+          view.dispatch({ changes: { from: sel.from, to: sel.to, insert: "" }, selection: { anchor: sel.from } });
+          setDirty(true);
+          setStatus("Wycięto");
+          return true;
+        }
+      });
+
+    const shortcuts = Prec.highest(
+      keymap.of([
+        {
+          key: "Mod-c",
+          run: (view) => {
+            copyEditorText(view, setStatus);
+            return true;
+          }
+        },
+        {
+          key: "Mod-v",
+          run: (view) => {
+            pasteEditorText(view, setStatus, () => setDirty(true));
+            return true;
+          }
+        },
+        {
+          key: "Mod-x",
+          run: (view) => {
+            const sel = view.state.selection.main;
+            if (sel.empty) {
+              copyEditorText(view, setStatus);
+              return true;
+            }
+            const text = view.state.sliceDoc(sel.from, sel.to);
+            writeClipboardText(text);
+            view.dispatch({ changes: { from: sel.from, to: sel.to, insert: "" }, selection: { anchor: sel.from } });
+            setDirty(true);
+            setStatus("Wycięto");
+            return true;
+          }
+        }
+      ])
+    );
+
+    return [domHandlers, shortcuts];
+  }, [setDirty, setStatus]);
 
   const wrapSelection = useCallback(
     (prefix: string, suffix: string, placeholder: string) => {
@@ -53,9 +151,10 @@ export function useEditorActions(
         changes: { from: sel.from, to: sel.to, insert },
         selection: { anchor: sel.from + prefix.length, head: sel.from + prefix.length + selected.length }
       });
+      setDirty(true);
       view.focus();
     },
-    [editorView]
+    [editorView, setDirty]
   );
 
   const prefixLine = useCallback(
@@ -64,9 +163,10 @@ export function useEditorActions(
       if (!view) return;
       const line = view.state.doc.lineAt(view.state.selection.main.from);
       view.dispatch({ changes: { from: line.from, insert: prefix } });
+      setDirty(true);
       view.focus();
     },
-    [editorView]
+    [editorView, setDirty]
   );
 
   const findNext = useCallback(
@@ -103,9 +203,10 @@ export function useEditorActions(
         changes: { from: sel.from, to: sel.to, insert: replacement },
         selection: { anchor: sel.from + replacement.length }
       });
+      setDirty(true);
       setStatus("Zamieniono jedno wystąpienie");
     },
-    [editorView, findNext, setStatus]
+    [editorView, findNext, setDirty, setStatus]
   );
 
   const replaceAll = useCallback(
@@ -145,8 +246,10 @@ export function useEditorActions(
   );
 
   return {
+    clipboardExtension,
     insertAtSelection,
     copySelection,
+    cutSelection,
     pasteFromClipboard,
     wrapSelection,
     prefixLine,
