@@ -2,8 +2,7 @@ import type { Theme } from "../renderer-types";
 import { wrapHtmlDocument } from "./documentStyles";
 
 export type PreviewCopyResult =
-  | { ok: true; scope: "selection" | "document" }
-  | { ok: false; reason: "no-preview" | "empty" };
+  { ok: true; scope: "selection" | "document" } | { ok: false; reason: "no-preview" | "empty" };
 
 export function getPreviewCopySelection(
   previewEl: HTMLElement | null

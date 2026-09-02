@@ -3,20 +3,30 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { isWindowsStoreBuild } from "./runtimeTarget.js";
 
 const execFileAsync = promisify(execFile);
 
-const PROG_ID = "MarkdownStudio.md";
+const PROG_ID = "StudioMarkdown.md";
 const MARKDOWN_EXTS = [".md", ".markdown", ".mdown", ".mkd"];
 
 function regAddArgs(...parts: string[]) {
   return ["add", ...parts, "/f"];
 }
 
-/** Registers Markdown Studio as a handler for .md (current user, HKCU). */
+/** Registers Studio Markdown as a handler for .md (current user, HKCU). */
 export async function registerMarkdownHandlers(): Promise<{ ok: boolean; message: string }> {
   if (process.platform !== "win32") {
     return { ok: false, message: "Obsługiwane tylko na Windows." };
+  }
+
+  if (isWindowsStoreBuild()) {
+    // Defence in depth: the caller already avoids this path, but an MSIX
+    // package must never touch HKCU to claim file types.
+    return {
+      ok: false,
+      message: "W wersji ze sklepu skojarzenia plików pochodzą z pakietu."
+    };
   }
 
   const exe = process.execPath;
@@ -28,7 +38,10 @@ export async function registerMarkdownHandlers(): Promise<{ ok: boolean; message
   const iconRef = `"${exe}",0`;
 
   try {
-    await execFileAsync("reg", regAddArgs(`HKCU\\Software\\Classes\\${PROG_ID}`, "/ve", "/d", "Markdown Studio"));
+    await execFileAsync(
+      "reg",
+      regAddArgs(`HKCU\\Software\\Classes\\${PROG_ID}`, "/ve", "/d", "Studio Markdown")
+    );
     await execFileAsync(
       "reg",
       regAddArgs(`HKCU\\Software\\Classes\\${PROG_ID}\\DefaultIcon`, "/ve", "/d", iconRef)
@@ -45,7 +58,10 @@ export async function registerMarkdownHandlers(): Promise<{ ok: boolean; message
 
     for (const ext of MARKDOWN_EXTS) {
       const key = ext.startsWith(".") ? ext.slice(1) : ext;
-      await execFileAsync("reg", regAddArgs(`HKCU\\Software\\Classes\\.${key}`, "/ve", "/d", PROG_ID));
+      await execFileAsync(
+        "reg",
+        regAddArgs(`HKCU\\Software\\Classes\\.${key}`, "/ve", "/d", PROG_ID)
+      );
     }
 
     return {
@@ -61,10 +77,7 @@ export async function registerMarkdownHandlers(): Promise<{ ok: boolean; message
 
 /** Opens Windows settings to pick default app for .md */
 export async function openDefaultAppSettings(): Promise<void> {
-  const urls = [
-    "ms-settings:defaultapps-fileextension?extension=.md",
-    "ms-settings:defaultapps"
-  ];
+  const urls = ["ms-settings:defaultapps-fileextension?extension=.md", "ms-settings:defaultapps"];
   for (const url of urls) {
     try {
       await shell.openExternal(url);

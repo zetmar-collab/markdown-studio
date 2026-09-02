@@ -26,8 +26,10 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            out/pack/Markdown-Studio-*-Setup-*.exe
-            out/pack/Markdown-Studio-*-Portable-*.exe
+            out/pack/Studio-Markdown-*-Setup-*.exe
+            out/pack/Studio-Markdown-*-Portable-*.exe
+            out/pack/latest.yml
+            out/pack/*.blockmap
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

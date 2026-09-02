@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type {} from "../../types/electron-api";
+import type { MarkdownFile, SavedSession } from "../../types/electron-api";
+import type { Translator } from "../../shared/i18n";
+import type { AppSettings } from "../../shared/settings";
 import type { Tab } from "../renderer-types";
 import {
-  AUTOSAVE_INTERVAL_MS,
   DOCUMENT_TEMPLATES,
   MAX_RECENT_FILES,
-  RECENT_FILES_KEY,
-  SESSION_STORAGE_KEY,
+  templateContent,
   type DocumentTemplateId
 } from "../constants";
 
@@ -15,93 +15,100 @@ function newId() {
   return `tab-${++_tabSeq}`;
 }
 
-function emptyTab(): Tab {
-  return { id: newId(), content: "", filePath: null, fileName: "bez-nazwy.md", dirty: false };
+function emptyTab(untitled: string): Tab {
+  return { id: newId(), content: "", filePath: null, fileName: untitled, dirty: false };
 }
 
-function loadRecentFiles(): string[] {
-  try {
-    return JSON.parse(localStorage.getItem(RECENT_FILES_KEY) ?? "[]") as string[];
-  } catch {
-    return [];
-  }
-}
-
-interface SavedTab {
-  filePath: string | null;
-  fileName: string;
-  content?: string;
-}
-
-interface SavedSession {
-  activeIndex: number;
-  tabs: SavedTab[];
-}
-
-type OpenedFile = Awaited<ReturnType<typeof window.markdownStudio.openFile>>;
-
-export function useTabManager(setStatus: (msg: string) => void) {
-  const initial = emptyTab();
-  const [tabs, setTabs] = useState<Tab[]>([initial]);
-  const [activeId, setActiveId] = useState<string>(initial.id);
-  const [recentFiles, setRecentFiles] = useState<string[]>(loadRecentFiles);
+export function useTabManager(
+  setStatus: (msg: string) => void,
+  t: Translator,
+  settings: AppSettings,
+  settingsLoaded: boolean
+) {
+  const untitled = t("app.untitled");
+  const [tabs, setTabs] = useState<Tab[]>(() => [emptyTab("bez-nazwy.md")]);
+  const [activeId, setActiveId] = useState<string>(() => tabs[0].id);
+  const [recentFiles, setRecentFiles] = useState<string[]>([]);
   const sessionReady = useRef(false);
 
   const tabsRef = useRef<Tab[]>(tabs);
   tabsRef.current = tabs;
 
-  const active = tabs.find((t) => t.id === activeId) ?? tabs[0];
+  const active = tabs.find((tab) => tab.id === activeId) ?? tabs[0];
 
   const snap = useRef({ content: active.content, filePath: active.filePath, dirty: active.dirty });
   snap.current = { content: active.content, filePath: active.filePath, dirty: active.dirty };
 
   const patchTab = useCallback((id: string, patch: Partial<Tab>) => {
-    setTabs((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+    setTabs((prev) => prev.map((tab) => (tab.id === id ? { ...tab, ...patch } : tab)));
   }, []);
 
   const patchActive = useCallback(
     (patch: Partial<Tab>) => {
-      setTabs((prev) => prev.map((t) => (t.id === activeId ? { ...t, ...patch } : t)));
+      setTabs((prev) => prev.map((tab) => (tab.id === activeId ? { ...tab, ...patch } : tab)));
     },
     [activeId]
   );
 
+  useEffect(() => {
+    void window.markdownStudio.readRecentFiles().then(setRecentFiles);
+  }, []);
+
   const addToRecent = useCallback((path: string) => {
     setRecentFiles((prev) => {
-      const next = [path, ...prev.filter((p) => p !== path)].slice(0, MAX_RECENT_FILES);
-      localStorage.setItem(RECENT_FILES_KEY, JSON.stringify(next));
+      const next = [path, ...prev.filter((entry) => entry !== path)].slice(0, MAX_RECENT_FILES);
+      void window.markdownStudio.writeRecentFiles(next);
       return next;
     });
   }, []);
 
-  const updateWindowTitle = useCallback((tab: Tab) => {
-    const title = `${tab.fileName}${tab.dirty ? " •" : ""} — Markdown Studio`;
-    void window.markdownStudio.setTitle(title);
+  /** A recent entry that no longer opens is dropped instead of silently failing. */
+  const forgetRecent = useCallback((path: string) => {
+    setRecentFiles((prev) => {
+      const next = prev.filter((entry) => entry !== path);
+      void window.markdownStudio.writeRecentFiles(next);
+      return next;
+    });
   }, []);
 
-  const confirmDiscardActive = useCallback(() => {
-    const cur = tabsRef.current.find((t) => t.id === activeId);
-    if (!cur?.dirty) return true;
-    return window.confirm(`Masz niezapisane zmiany w „${cur.fileName}". Kontynuować?`);
-  }, [activeId]);
+  /** Window title is built from the dictionary so the product name lives in one place. */
+  const appName = t("app.name");
+
+  const titleFor = useCallback(
+    (fileName: string, dirty = false) => `${fileName}${dirty ? " •" : ""} — ${appName}`,
+    [appName]
+  );
+
+  const updateWindowTitle = useCallback(
+    (tab: Tab) => {
+      void window.markdownStudio.setTitle(titleFor(tab.fileName, tab.dirty));
+    },
+    [titleFor]
+  );
+
+  const confirmDiscardActive = useCallback(async () => {
+    const current = tabsRef.current.find((tab) => tab.id === activeId);
+    if (!current?.dirty) return true;
+    return window.markdownStudio.confirm(t("dialog.discardActive", { name: current.fileName }));
+  }, [activeId, t]);
 
   const openFileInTab = useCallback(
-    (file: OpenedFile) => {
+    async (file: MarkdownFile | null) => {
       if (!file) return;
 
-      const existing = tabsRef.current.find((t) => t.filePath === file.filePath);
+      const existing = tabsRef.current.find((tab) => tab.filePath === file.filePath);
       if (existing) {
         setActiveId(existing.id);
         updateWindowTitle(existing);
-        setStatus(`Przełączono na ${file.fileName}`);
+        setStatus(t("status.switched", { name: file.fileName }));
         return;
       }
 
-      if (!confirmDiscardActive()) return;
+      if (!(await confirmDiscardActive())) return;
 
-      const activeTab = tabsRef.current.find((t) => t.id === activeId)!;
+      const activeTab = tabsRef.current.find((tab) => tab.id === activeId);
       const reuse =
-        !activeTab.filePath && !activeTab.dirty && activeTab.content.trim() === "" && activeTab.fileName === "bez-nazwy.md";
+        activeTab && !activeTab.filePath && !activeTab.dirty && activeTab.content.trim() === "";
 
       if (reuse) {
         patchActive({
@@ -120,28 +127,41 @@ export function useTabManager(setStatus: (msg: string) => void) {
         };
         setTabs((prev) => [...prev, tab]);
         setActiveId(tab.id);
-        updateWindowTitle(tab);
       }
 
       addToRecent(file.filePath);
-      setStatus(`Otworzono ${file.fileName}`);
-      void window.markdownStudio.setTitle(`${file.fileName} — Markdown Studio`);
+      setStatus(t("status.opened", { name: file.fileName }));
+      void window.markdownStudio.setTitle(titleFor(file.fileName));
     },
-    [activeId, addToRecent, confirmDiscardActive, patchActive, setStatus, updateWindowTitle]
+    [
+      activeId,
+      addToRecent,
+      confirmDiscardActive,
+      patchActive,
+      setStatus,
+      t,
+      titleFor,
+      updateWindowTitle
+    ]
   );
+
+  /* ---------------- session persistence ---------------- */
 
   const persistSession = useCallback(() => {
     if (!sessionReady.current) return;
     const list = tabsRef.current;
     const payload: SavedSession = {
-      activeIndex: Math.max(0, list.findIndex((t) => t.id === activeId)),
-      tabs: list.map((t) => ({
-        filePath: t.filePath,
-        fileName: t.fileName,
-        ...(t.filePath ? {} : { content: t.content })
+      activeIndex: Math.max(
+        0,
+        list.findIndex((tab) => tab.id === activeId)
+      ),
+      tabs: list.map((tab) => ({
+        filePath: tab.filePath,
+        fileName: tab.fileName,
+        ...(tab.filePath ? {} : { content: tab.content })
       }))
     };
-    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(payload));
+    void window.markdownStudio.writeSession(payload);
   }, [activeId]);
 
   useEffect(() => {
@@ -154,105 +174,126 @@ export function useTabManager(setStatus: (msg: string) => void) {
 
   useEffect(() => {
     return window.markdownStudio.onExternalFileChange((changedPath) => {
-      const tab = tabsRef.current.find((t) => t.filePath === changedPath);
+      const tab = tabsRef.current.find((entry) => entry.filePath === changedPath);
       if (!tab) return;
-      if (!window.confirm(`Plik „${tab.fileName}" zmienił się na dysku. Przeładować?`)) return;
-      void window.markdownStudio.openFilePath(changedPath).then((file) => {
+      void (async () => {
+        const reload = await window.markdownStudio.confirm(
+          t("dialog.externalChange", { name: tab.fileName })
+        );
+        if (!reload) return;
+        const file = await window.markdownStudio.openFilePath(changedPath);
         if (file) patchTab(tab.id, { content: file.content, dirty: false });
-      });
+      })();
     });
-  }, [patchTab]);
+  }, [patchTab, t]);
+
+  /* ---------------- autosave ---------------- */
 
   useEffect(() => {
-    const id = window.setInterval(async () => {
-      const dirtyTabs = tabsRef.current.filter((t) => t.dirty && t.filePath);
-      for (const tab of dirtyTabs) {
-        const file = await window.markdownStudio.saveFile({ filePath: tab.filePath!, content: tab.content });
-        if (file) {
-          patchTab(tab.id, { dirty: false });
-          setStatus(`Autosave: ${file.fileName}`);
+    if (!settingsLoaded || !settings.autosaveEnabled) return;
+    const intervalMs = Math.max(5, settings.autosaveIntervalSeconds) * 1000;
+    const id = window.setInterval(() => {
+      void (async () => {
+        const dirtyTabs = tabsRef.current.filter((tab) => tab.dirty && tab.filePath);
+        for (const tab of dirtyTabs) {
+          const file = await window.markdownStudio.saveFile({
+            filePath: tab.filePath!,
+            content: tab.content
+          });
+          if (file) {
+            patchTab(tab.id, { dirty: false });
+            setStatus(t("status.autosave", { name: file.fileName }));
+          }
         }
-      }
-    }, AUTOSAVE_INTERVAL_MS);
+      })();
+    }, intervalMs);
     return () => window.clearInterval(id);
-  }, [patchTab, setStatus]);
+  }, [
+    patchTab,
+    setStatus,
+    settings.autosaveEnabled,
+    settings.autosaveIntervalSeconds,
+    settingsLoaded,
+    t
+  ]);
 
   useEffect(() => {
     return window.markdownStudio.onWillClose(() => {
-      const dirty = tabsRef.current.filter((t) => t.dirty);
-      if (!dirty.length) {
-        void window.markdownStudio.forceClose();
-        return;
-      }
-      const msg =
-        dirty.length === 1
-          ? `Masz niezapisane zmiany w „${dirty[0].fileName}". Czy na pewno chcesz zamknąć?`
-          : `Masz ${dirty.length} zakładki z niezapisanymi zmianami. Czy na pewno chcesz zamknąć?`;
-      if (window.confirm(msg)) void window.markdownStudio.forceClose();
+      void (async () => {
+        const dirty = tabsRef.current.filter((tab) => tab.dirty);
+        if (!dirty.length) {
+          await window.markdownStudio.forceClose();
+          return;
+        }
+        const message =
+          dirty.length === 1
+            ? t("dialog.unsavedOne", { name: dirty[0].fileName })
+            : t("dialog.unsavedMany", { count: dirty.length });
+        if (await window.markdownStudio.confirm(message)) {
+          await window.markdownStudio.forceClose();
+        }
+      })();
     });
-  }, []);
+  }, [t]);
 
   const restoreSession = useCallback(async () => {
-    try {
-      const raw = localStorage.getItem(SESSION_STORAGE_KEY);
-      if (!raw) return false;
-      const session = JSON.parse(raw) as SavedSession;
-      if (!session.tabs?.length) return false;
+    const session = await window.markdownStudio.readSession();
+    if (!session?.tabs?.length) return false;
 
-      const restored: Tab[] = [];
-      for (const saved of session.tabs) {
-        if (saved.filePath) {
-          const file = await window.markdownStudio.openFilePath(saved.filePath);
-          if (file) {
-            restored.push({
-              id: newId(),
-              content: file.content,
-              filePath: file.filePath,
-              fileName: file.fileName,
-              dirty: false
-            });
-          }
-        } else {
+    const restored: Tab[] = [];
+    for (const saved of session.tabs) {
+      if (saved.filePath) {
+        const file = await window.markdownStudio.openFilePath(saved.filePath);
+        if (file) {
           restored.push({
             id: newId(),
-            content: saved.content ?? "",
-            filePath: null,
-            fileName: saved.fileName || "bez-nazwy.md",
+            content: file.content,
+            filePath: file.filePath,
+            fileName: file.fileName,
             dirty: false
           });
         }
+        // A file that vanished between sessions is simply skipped.
+      } else {
+        restored.push({
+          id: newId(),
+          content: saved.content ?? "",
+          filePath: null,
+          fileName: saved.fileName || untitled,
+          dirty: false
+        });
       }
-      if (!restored.length) return false;
-
-      const idx = Math.min(Math.max(0, session.activeIndex), restored.length - 1);
-      setTabs(restored);
-      setActiveId(restored[idx].id);
-      updateWindowTitle(restored[idx]);
-      setStatus("Przywrócono poprzednią sesję");
-      return true;
-    } catch {
-      return false;
     }
-  }, [setStatus, updateWindowTitle]);
+    if (!restored.length) return false;
+
+    const index = Math.min(Math.max(0, session.activeIndex), restored.length - 1);
+    setTabs(restored);
+    setActiveId(restored[index].id);
+    updateWindowTitle(restored[index]);
+    setStatus(t("status.sessionRestored"));
+    return true;
+  }, [setStatus, t, untitled, updateWindowTitle]);
 
   const loadStartupFile = useCallback(async () => {
     const startup = await window.markdownStudio.getStartupFile();
     if (startup) {
-      openFileInTab(startup);
+      await openFileInTab(startup);
       sessionReady.current = true;
       return;
     }
     const restored = await restoreSession();
     sessionReady.current = true;
-    if (!restored) setStatus("Gotowe");
-  }, [openFileInTab, restoreSession, setStatus]);
+    if (!restored) setStatus(t("app.ready"));
+  }, [openFileInTab, restoreSession, setStatus, t]);
+
+  /* ---------------- tab operations ---------------- */
 
   const addTab = useCallback(
     (partial: Partial<Tab> & Pick<Tab, "content">) => {
       const tab: Tab = {
         id: newId(),
         filePath: null,
-        fileName: "bez-nazwy.md",
+        fileName: untitled,
         dirty: false,
         ...partial
       };
@@ -261,33 +302,39 @@ export function useTabManager(setStatus: (msg: string) => void) {
       updateWindowTitle(tab);
       return tab;
     },
-    [updateWindowTitle]
+    [untitled, updateWindowTitle]
   );
 
   const newDocument = useCallback(() => {
     addTab({ content: "" });
-    setStatus("Utworzono nowy dokument");
-    void window.markdownStudio.setTitle("bez-nazwy.md — Markdown Studio");
-  }, [addTab, setStatus]);
+    setStatus(t("status.newDocument"));
+    void window.markdownStudio.setTitle(titleFor(untitled));
+  }, [addTab, setStatus, t, titleFor, untitled]);
 
   const newDocumentFromTemplate = useCallback(
     (templateId: DocumentTemplateId) => {
-      const template = DOCUMENT_TEMPLATES[templateId];
-      addTab({ content: template.content, fileName: "bez-nazwy.md" });
-      setStatus(`Utworzono: ${template.label}`);
+      addTab({ content: templateContent(templateId, settings.language) });
+      setStatus(t("status.createdFrom", { name: t(DOCUMENT_TEMPLATES[templateId].labelKey) }));
     },
-    [addTab, setStatus]
+    [addTab, setStatus, settings.language, t]
   );
 
   const open = useCallback(async () => {
-    openFileInTab(await window.markdownStudio.openFile());
+    await openFileInTab(await window.markdownStudio.openFile());
   }, [openFileInTab]);
 
   const openRecentFile = useCallback(
     async (path: string) => {
-      openFileInTab(await window.markdownStudio.openFilePath(path));
+      const file = await window.markdownStudio.openFilePath(path);
+      if (!file) {
+        // The old code let this reject unhandled, so nothing happened at all.
+        setStatus(t("status.fileMissing", { path }));
+        forgetRecent(path);
+        return;
+      }
+      await openFileInTab(file);
     },
-    [openFileInTab]
+    [forgetRecent, openFileInTab, setStatus, t]
   );
 
   const save = useCallback(async () => {
@@ -297,9 +344,10 @@ export function useTabManager(setStatus: (msg: string) => void) {
     });
     if (!file) return;
     patchActive({ filePath: file.filePath, fileName: file.fileName, dirty: false });
-    setStatus(`Zapisano ${file.fileName}`);
-    void window.markdownStudio.setTitle(`${file.fileName} — Markdown Studio`);
-  }, [patchActive, setStatus]);
+    addToRecent(file.filePath);
+    setStatus(t("status.saved", { name: file.fileName }));
+    void window.markdownStudio.setTitle(titleFor(file.fileName));
+  }, [addToRecent, patchActive, setStatus, t, titleFor]);
 
   const saveAs = useCallback(async () => {
     const file = await window.markdownStudio.saveFileAs({
@@ -308,39 +356,57 @@ export function useTabManager(setStatus: (msg: string) => void) {
     });
     if (!file) return;
     patchActive({ filePath: file.filePath, fileName: file.fileName, dirty: false });
-    setStatus(`Zapisano jako ${file.fileName}`);
-    void window.markdownStudio.setTitle(`${file.fileName} — Markdown Studio`);
-  }, [patchActive, setStatus]);
+    addToRecent(file.filePath);
+    setStatus(t("status.savedAs", { name: file.fileName }));
+    void window.markdownStudio.setTitle(titleFor(file.fileName));
+  }, [addToRecent, patchActive, setStatus, t, titleFor]);
 
   const switchTab = useCallback(
     (id: string) => {
       setActiveId(id);
-      const tab = tabsRef.current.find((t) => t.id === id);
+      const tab = tabsRef.current.find((entry) => entry.id === id);
       if (tab) updateWindowTitle(tab);
     },
     [updateWindowTitle]
   );
 
-  const closeTab = useCallback((id: string) => {
-    const tab = tabsRef.current.find((t) => t.id === id);
-    if (!tab) return;
-    if (tab.dirty && !window.confirm(`Zamknąć „${tab.fileName}" z niezapisanymi zmianami?`)) return;
-
-    setTabs((prev) => {
-      if (prev.length === 1) {
-        const fresh = emptyTab();
-        setActiveId(fresh.id);
-        return [fresh];
+  /**
+   * State updaters must stay pure: the previous version called `setActiveId`
+   * from inside the `setTabs` updater, which React re-runs in StrictMode and
+   * could leave the wrong tab selected.
+   */
+  const closeTab = useCallback(
+    async (id: string) => {
+      const list = tabsRef.current;
+      const tab = list.find((entry) => entry.id === id);
+      if (!tab) return;
+      if (
+        tab.dirty &&
+        !(await window.markdownStudio.confirm(t("dialog.closeDirtyTab", { name: tab.fileName })))
+      ) {
+        return;
       }
-      const next = prev.filter((t) => t.id !== id);
-      setActiveId((cur) => {
-        if (cur !== id) return cur;
-        const idx = prev.findIndex((t) => t.id === id);
-        return next[Math.min(idx, next.length - 1)].id;
-      });
-      return next;
-    });
-  }, []);
+
+      if (list.length === 1) {
+        const fresh = emptyTab(untitled);
+        setTabs([fresh]);
+        setActiveId(fresh.id);
+        updateWindowTitle(fresh);
+        return;
+      }
+
+      const index = list.findIndex((entry) => entry.id === id);
+      const next = list.filter((entry) => entry.id !== id);
+      const nextActive = activeId === id ? next[Math.min(index, next.length - 1)] : null;
+
+      setTabs(next);
+      if (nextActive) {
+        setActiveId(nextActive.id);
+        updateWindowTitle(nextActive);
+      }
+    },
+    [activeId, t, untitled, updateWindowTitle]
+  );
 
   const setContent = useCallback(
     (value: string) => {

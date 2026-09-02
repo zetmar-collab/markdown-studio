@@ -12,7 +12,13 @@ function sleepMs(ms) {
 }
 
 function stopWindowsProcesses() {
-  const imageNames = ["Markdown Studio.exe", "markdown-studio.exe", "electron.exe"];
+  const imageNames = [
+    "Studio Markdown.exe",
+    // Pre-rename builds may still be running after an upgrade.
+    "Markdown Studio.exe",
+    "markdown-studio.exe",
+    "electron.exe"
+  ];
   for (const image of imageNames) {
     try {
       execSync(`taskkill /IM "${image}" /F`, { stdio: "pipe" });
@@ -27,6 +33,7 @@ Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
   Where-Object {
     $_.ExecutablePath -and (
       $_.ExecutablePath -like '*win-unpacked*' -or
+      $_.ExecutablePath -like '*Studio Markdown*' -or
       $_.ExecutablePath -like '*Markdown Studio*' -or
       $_.ExecutablePath -like '*markdown-studio*' -or
       $_.ExecutablePath -like '*\\\\out\\\\pack\\\\*' -or
@@ -91,14 +98,14 @@ if (platform() === "win32") {
 
 let staleLeft = false;
 
-// Cały out/pack — inaczej zostaje Markdown Studio.exe zamiast electron.exe i build pada na rename
+// Cały out/pack — inaczej zostaje Studio Markdown.exe zamiast electron.exe i build pada na rename
 if (!cleanDir(packOutput)) staleLeft = true;
 if (!cleanDir(legacyOutput)) staleLeft = true;
 
 if (staleLeft && platform() === "win32") {
   console.error("");
   console.error("BŁĄD: Nie można wyczyścić out\\pack (pliki zablokowane).");
-  console.error("Zamknij Markdown Studio, Eksplorator w out\\pack, antywirus skanujący folder.");
+  console.error("Zamknij Studio Markdown, Eksplorator w out\\pack, antywirus skanujący folder.");
   console.error("Usuń ręcznie: out\\pack");
   console.error("");
   process.exit(1);

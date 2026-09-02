@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { FolderSearch, Search, X } from "lucide-react";
+import { CaseSensitive, FolderSearch, Regex, Search, X } from "lucide-react";
+import type { Translator } from "../../shared/i18n";
 import type { SearchHit } from "../../types/electron-api";
 
 interface WorkspaceSearchProps {
@@ -8,11 +9,21 @@ interface WorkspaceSearchProps {
   onClose: () => void;
   onOpenHit: (filePath: string, line: number) => void;
   onStatus: (msg: string) => void;
+  t: Translator;
 }
 
-export function WorkspaceSearch({ open, initialFolder, onClose, onOpenHit, onStatus }: WorkspaceSearchProps) {
+export function WorkspaceSearch({
+  open,
+  initialFolder,
+  onClose,
+  onOpenHit,
+  onStatus,
+  t
+}: WorkspaceSearchProps) {
   const [folderPath, setFolderPath] = useState(initialFolder ?? "");
   const [query, setQuery] = useState("");
+  const [regex, setRegex] = useState(false);
+  const [caseSensitive, setCaseSensitive] = useState(false);
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [meta, setMeta] = useState("");
   const [busy, setBusy] = useState(false);
@@ -20,6 +31,15 @@ export function WorkspaceSearch({ open, initialFolder, onClose, onOpenHit, onSta
   useEffect(() => {
     if (open && initialFolder) setFolderPath(initialFolder);
   }, [open, initialFolder]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -30,63 +50,98 @@ export function WorkspaceSearch({ open, initialFolder, onClose, onOpenHit, onSta
 
   async function runSearch() {
     if (!folderPath.trim()) {
-      onStatus("Wybierz folder do przeszukania");
+      onStatus(t("status.pickSearchFolder"));
       return;
     }
     if (!query.trim()) {
-      onStatus("Wpisz frazę do wyszukania");
+      onStatus(t("status.enterSearchQuery"));
       return;
     }
     setBusy(true);
     try {
-      const result = await window.markdownStudio.searchInFolder(folderPath, query);
+      const result = await window.markdownStudio.searchInFolder(folderPath, query, {
+        regex,
+        caseSensitive
+      });
+      if (result.error === "invalid-regex") {
+        setHits([]);
+        setMeta("");
+        onStatus(t("find.badRegex"));
+        return;
+      }
       setHits(result.hits);
-      const trunc = result.truncated ? " (limit plików)" : "";
-      setMeta(`Przeszukano ${result.scannedFiles} plików · wyników: ${result.hits.length}${trunc}`);
-      onStatus(`Znaleziono ${result.hits.length} trafień`);
+      const truncated = result.truncated ? " (limit)" : "";
+      setMeta(`${result.scannedFiles} · ${result.hits.length}${truncated}`);
+      onStatus(t("status.searchHits", { count: result.hits.length }));
     } catch (error) {
-      onStatus(`Błąd wyszukiwania: ${error instanceof Error ? error.message : "nieznany"}`);
+      onStatus(
+        t("status.searchError", {
+          message: error instanceof Error ? error.message : "unknown"
+        })
+      );
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <section className="workspace-search" aria-label="Szukaj w folderze">
+    <section className="workspace-search" aria-label={t("menu.workspaceSearch")}>
       <div className="workspace-search-head">
         <FolderSearch size={16} />
-        <span>Szukaj w plikach Markdown</span>
-        <button type="button" className="workspace-search-close" onClick={onClose} title="Zamknij">
+        <span>{t("menu.workspaceSearch")}</span>
+        <button
+          type="button"
+          className="workspace-search-close"
+          onClick={onClose}
+          title={t("common.close")}
+        >
           <X size={16} />
         </button>
       </div>
       <div className="workspace-search-row">
         <input
           value={folderPath}
-          onChange={(e) => setFolderPath(e.target.value)}
-          placeholder="Ścieżka folderu"
-          title="Folder z plikami .md"
+          onChange={(event) => setFolderPath(event.target.value)}
+          placeholder={t("pane.chooseFolder")}
         />
         <button type="button" onClick={() => void pickFolder()}>
-          Wybierz…
+          {t("pane.chooseFolder")}
         </button>
       </div>
       <div className="workspace-search-row">
         <Search size={15} />
         <input
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && void runSearch()}
-          placeholder="Fraza w treści plików"
+          onChange={(event) => setQuery(event.target.value)}
+          onKeyDown={(event) => event.key === "Enter" && void runSearch()}
+          placeholder={t("find.search")}
         />
+        <button
+          type="button"
+          className={`find-toggle${regex ? " active" : ""}`}
+          title={t("find.regex")}
+          aria-pressed={regex}
+          onClick={() => setRegex((value) => !value)}
+        >
+          <Regex size={15} />
+        </button>
+        <button
+          type="button"
+          className={`find-toggle${caseSensitive ? " active" : ""}`}
+          title={t("find.caseSensitive")}
+          aria-pressed={caseSensitive}
+          onClick={() => setCaseSensitive((value) => !value)}
+        >
+          <CaseSensitive size={15} />
+        </button>
         <button type="button" className="primary" disabled={busy} onClick={() => void runSearch()}>
-          {busy ? "Szukam…" : "Szukaj"}
+          {busy ? "…" : t("find.search")}
         </button>
       </div>
       {meta && <p className="workspace-search-meta">{meta}</p>}
       <ul className="workspace-search-results" role="list">
-        {hits.map((hit, i) => (
-          <li key={`${hit.filePath}-${hit.line}-${i}`}>
+        {hits.map((hit, index) => (
+          <li key={`${hit.filePath}-${hit.line}-${index}`}>
             <button
               type="button"
               onClick={() => {
@@ -96,7 +151,7 @@ export function WorkspaceSearch({ open, initialFolder, onClose, onOpenHit, onSta
             >
               <strong>{hit.fileName}</strong>
               <span>
-                linia {hit.line}:{hit.column}
+                {hit.line}:{hit.column}
               </span>
               <em>{hit.snippet}</em>
             </button>

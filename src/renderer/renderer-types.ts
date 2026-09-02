@@ -9,16 +9,12 @@ export interface ToolbarAction {
   run: () => void | Promise<void>;
 }
 
-export interface DocStats {
-  words: number;
-  characters: number;
-  lines: number;
-}
+export type { DocStats, OutlineItem } from "./utils/markdownRenderer";
 
 export interface Tab {
-  id:       string;
-  content:  string;
+  id: string;
+  content: string;
   filePath: string | null;
   fileName: string;
-  dirty:    boolean;
+  dirty: boolean;
 }

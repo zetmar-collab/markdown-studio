@@ -19,7 +19,7 @@
   --preview-th-bg: #1e2330;
   --preview-pre-bg: #0e1118;
   --preview-pre-text: #dde3ef;
-  --shadow: 0 18px 50px rgba(0, 0, 0, .22);
+  --shadow: 0 18px 50px rgba(0, 0, 0, 0.22);
 }
 
 :root[data-theme="light"] {
@@ -42,7 +42,7 @@
   --preview-th-bg: #f1f4f8;
   --preview-pre-bg: #10141d;
   --preview-pre-text: #eef3f8;
-  --shadow: 0 18px 48px rgba(31, 42, 68, .12);
+  --shadow: 0 18px 48px rgba(31, 42, 68, 0.12);
 }
 
 * {
@@ -80,7 +80,10 @@ button {
   justify-content: center;
   gap: 7px;
   cursor: pointer;
-  transition: background .15s ease, border-color .15s ease, transform .15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
 }
 
 button:hover {
@@ -223,7 +226,9 @@ input:focus {
   scrollbar-width: none;
 }
 
-.tab-list::-webkit-scrollbar { display: none; }
+.tab-list::-webkit-scrollbar {
+  display: none;
+}
 
 .tab {
   display: flex;
@@ -238,7 +243,9 @@ input:focus {
   flex-shrink: 0;
   color: var(--muted);
   font-size: 12px;
-  transition: background .12s ease, color .12s ease;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
   user-select: none;
 }
 
@@ -282,7 +289,10 @@ input:focus {
   color: var(--muted);
   opacity: 0;
   flex-shrink: 0;
-  transition: opacity .12s ease, background .12s ease, color .12s ease;
+  transition:
+    opacity 0.12s ease,
+    background 0.12s ease,
+    color 0.12s ease;
 }
 
 .tab:hover .tab-close,
@@ -452,7 +462,7 @@ input:focus {
   font-size: 12px;
   font-style: normal;
   color: var(--muted);
-  opacity: .9;
+  opacity: 0.9;
 }
 
 .formatbar {
@@ -521,7 +531,7 @@ input:focus {
   color: var(--muted);
   font-size: 12px;
   font-weight: 600;
-  letter-spacing: .02em;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
 }
 
@@ -578,7 +588,7 @@ input:focus {
   background: var(--preview-bg);
   color: var(--preview-text);
   font-family: "Segoe UI", Arial, sans-serif;
-  font-size: 16px;
+  font-size: var(--preview-font-size, 16px);
   line-height: 1.7;
 }
 
@@ -590,19 +600,19 @@ input:focus {
 .markdown-preview h6 {
   line-height: 1.22;
   color: var(--preview-text);
-  margin: 1.5em 0 .55em;
+  margin: 1.5em 0 0.55em;
   cursor: pointer;
 }
 
 .markdown-preview h1 {
   margin-top: 0;
-  padding-bottom: .25em;
+  padding-bottom: 0.25em;
   border-bottom: 1px solid var(--preview-border);
   font-size: 38px;
 }
 
 .markdown-preview h2 {
-  padding-bottom: .2em;
+  padding-bottom: 0.2em;
   border-bottom: 1px solid var(--preview-border);
   font-size: 27px;
 }
@@ -703,7 +713,7 @@ input:focus {
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
-  box-shadow: 0 18px 45px rgba(0, 0, 0, .32);
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.32);
 }
 
 .context-menu button {
@@ -732,7 +742,7 @@ input:focus {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, .55);
+  background: rgba(0, 0, 0, 0.55);
   display: grid;
   place-items: center;
   z-index: 200;
@@ -768,7 +778,7 @@ input:focus {
   font-size: 11px;
   color: var(--muted);
   font-weight: 600;
-  letter-spacing: .04em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
@@ -866,7 +876,7 @@ input:focus {
 }
 
 .modal-actions button.primary:disabled {
-  opacity: .45;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
@@ -888,7 +898,7 @@ input:focus {
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
-  box-shadow: 0 18px 45px rgba(0, 0, 0, .32);
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.32);
 }
 
 .recent-dropdown button {
@@ -946,4 +956,338 @@ input:focus {
   .findbar {
     margin-left: 0;
   }
+}
+
+/* ==========================================================================
+   Side panels, settings, spelling, focus mode
+   ========================================================================== */
+
+/*
+ * The workspace switches from a two-column grid to flex so the optional file
+ * tree and outline panels can appear and disappear without the column count
+ * fighting the view-mode modifiers.
+ */
+.workspace {
+  display: flex;
+  gap: 12px;
+}
+
+.filetree-pane,
+.outline-pane {
+  flex: 0 0 232px;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 34px minmax(0, 1fr);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.editor-pane,
+.preview-pane {
+  flex: 1 1 0;
+}
+
+.side-empty {
+  margin: 0;
+  padding: 16px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.outline-list,
+.tree-list {
+  overflow: auto;
+  padding: 6px 0 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+.outline-item,
+.tree-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.outline-item:hover,
+.tree-item:hover {
+  background: var(--surface-hover, rgba(127, 127, 127, 0.12));
+}
+
+.outline-item.active,
+.tree-item.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.outline-item.level-1 {
+  padding-left: 10px;
+  font-weight: 600;
+}
+.outline-item.level-2 {
+  padding-left: 22px;
+}
+.outline-item.level-3 {
+  padding-left: 34px;
+}
+.outline-item.level-4 {
+  padding-left: 46px;
+}
+.outline-item.level-5 {
+  padding-left: 58px;
+}
+.outline-item.level-6 {
+  padding-left: 70px;
+}
+
+.tree-item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Focus mode: hide the chrome and centre the text column. */
+.app-shell.focus-mode {
+  grid-template-rows: 0 0 0 minmax(0, 1fr) 30px;
+}
+
+.app-shell.focus-mode .topbar,
+.app-shell.focus-mode .tabbar,
+.app-shell.focus-mode .formatbar,
+.app-shell.focus-mode .filetree-pane,
+.app-shell.focus-mode .outline-pane {
+  display: none;
+}
+
+.app-shell.focus-mode .markdown-preview {
+  padding: 48px max(44px, calc((100% - 780px) / 2)) 96px;
+}
+
+/* Find toggles */
+.find-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 6px;
+}
+
+.find-toggle.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* Spelling suggestions inside the context menu */
+.context-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  color: var(--muted);
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.context-suggestion span {
+  font-weight: 600;
+}
+
+/* Settings dialog */
+.modal-wide {
+  max-width: 720px;
+  width: min(720px, 92vw);
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 18px;
+  max-height: 60vh;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.settings-grid .modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.settings-grid .modal-field > span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/*
+ * Checkboxes must escape the global `input { height: 32px; min-width: 130px }`
+ * and `.modal-field input { width: 100% }` rules, which otherwise stretch them
+ * across the column and push their labels to the far edge.
+ */
+.settings-grid .modal-check input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: 16px;
+  min-width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.settings-grid .modal-check > span {
+  flex: 1 1 auto;
+}
+
+.settings-grid .modal-check {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-grid .modal-check > span {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.modal-field-wide {
+  grid-column: 1 / -1;
+}
+
+.margin-inputs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.statusbar-message {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Render-error fallback */
+.error-boundary {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 48px;
+  background: var(--bg);
+  color: var(--text);
+  overflow: auto;
+}
+
+.error-boundary pre {
+  max-width: 100%;
+  overflow: auto;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: 12.5px;
+}
+
+.error-boundary .error-stack {
+  max-height: 40vh;
+  color: var(--muted);
+}
+
+/* Markdown extensions rendered in the preview */
+.markdown-preview .md-admonition {
+  border-left: 4px solid var(--accent);
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin: 0 0 1em;
+  background: var(--preview-code-bg);
+}
+
+.markdown-preview .md-admonition-title {
+  margin: 0 0 0.4em;
+  font-weight: 600;
+}
+
+.markdown-preview .md-admonition-note {
+  border-left-color: #2f86e7;
+}
+.markdown-preview .md-admonition-tip {
+  border-left-color: #29a745;
+}
+.markdown-preview .md-admonition-warning {
+  border-left-color: #e3a008;
+}
+.markdown-preview .md-admonition-danger {
+  border-left-color: #e5534b;
+}
+
+.markdown-preview .mermaid-diagram {
+  margin: 0 0 1em;
+  text-align: center;
+}
+
+.markdown-preview .mermaid-diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.markdown-preview .mermaid-error {
+  border: 1px solid #e5534b;
+  border-radius: 6px;
+  padding: 10px 12px;
+  color: #e5534b;
+  font-size: 0.9em;
+  text-align: left;
+  white-space: pre-wrap;
+}
+
+.markdown-preview .footnotes {
+  font-size: 0.9em;
+  color: var(--preview-muted);
+}
+
+.markdown-preview dl dt {
+  font-weight: 600;
+  margin-top: 0.8em;
+}
+
+.markdown-preview dl dd {
+  margin: 0 0 0.4em 1.4em;
+}
+
+.markdown-preview [data-line] {
+  scroll-margin-top: 12px;
+}
+
+/*
+ * Task-list checkboxes must escape the global `input { height: 32px;
+ * min-width: 130px }` rule, which stretched them into large blue blocks
+ * detached from their labels.
+ */
+.markdown-preview input[type="checkbox"] {
+  width: auto;
+  min-width: 0;
+  height: auto;
+  margin: 0 8px 0 0;
+  padding: 0;
+  vertical-align: middle;
+  accent-color: var(--accent);
+}
+
+.markdown-preview del,
+.markdown-preview s {
+  color: var(--preview-muted);
 }

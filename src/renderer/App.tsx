@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
-import CodeMirror, { ReactCodeMirrorRef } from "@uiw/react-codemirror";
+import CodeMirror, { type ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { markdown } from "@codemirror/lang-markdown";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { EditorView } from "@codemirror/view";
@@ -21,73 +21,136 @@ import {
   Italic,
   Link,
   List,
+  ListChecks,
   ListOrdered,
   Printer,
   Quote,
   Save,
+  Strikethrough,
   Table2
 } from "lucide-react";
 import type {} from "../types/electron-api";
+import type { SpellContextPayload, UpdateStatus } from "../types/electron-api";
 import "highlight.js/styles/github-dark.css";
 import "./styles.css";
 import { Toolbar } from "./components/Toolbar";
-import { FormatBar } from "./components/FormatBar";
+import { FormatBar, type FindSettings } from "./components/FormatBar";
 import { StatusBar } from "./components/StatusBar";
 import { ContextMenu } from "./components/ContextMenu";
 import { ImageDialog } from "./components/ImageDialog";
 import { TableDialog } from "./components/TableDialog";
+import { SettingsDialog } from "./components/SettingsDialog";
 import { WorkspaceSearch } from "./components/WorkspaceSearch";
+import { Outline } from "./components/Outline";
+import { FileTree } from "./components/FileTree";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { applyDocumentThemeToRoot } from "./utils/documentStyles";
-import type { Theme, ViewMode, ToolbarAction } from "./renderer-types";
+import type { Theme, ViewMode, ToolbarAction, OutlineItem } from "./renderer-types";
 import { TabBar } from "./components/TabBar";
 import { useTabManager } from "./hooks/useTabManager";
 import { useMarkdownPreview } from "./hooks/useMarkdownPreview";
 import { useScrollSync } from "./hooks/useScrollSync";
 import { useEditorActions } from "./hooks/useEditorActions";
 import { useExport } from "./hooks/useExport";
+import { useSettings } from "./hooks/useSettings";
 import { buildPreviewClipboardPayload, getPreviewCopySelection } from "./utils/previewClipboard";
 import { writeClipboardRich, writeClipboardText } from "./utils/clipboard";
-import { getDocStats } from "./utils/markdownRenderer";
+import { extractOutline, getDocStats } from "./utils/markdownRenderer";
+import { renderMermaidDiagrams } from "./utils/mermaid";
+import { dirnameOf } from "./utils/assetUrls";
 import { MARKDOWN_EXTENSIONS } from "./constants";
+
 type ContextTarget = "editor" | "preview";
 
-function searchFolderFromFilePath(filePath: string | null): string | null {
-  if (!filePath) return null;
-  const i = Math.max(filePath.lastIndexOf("/"), filePath.lastIndexOf("\\"));
-  return i > 0 ? filePath.slice(0, i) : null;
+function readStoredBoolean(key: string, fallback: boolean): boolean {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw === null ? fallback : raw === "true";
+  } catch {
+    return fallback;
+  }
+}
+
+function storeValue(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // A full or disabled localStorage must never break the editor.
+  }
 }
 
 function App() {
   const editorRef = useRef<ReactCodeMirrorRef>(null);
   const previewRef = useRef<HTMLElement>(null);
 
-  const [status, setStatus] = useState("Gotowe");
-  const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem("theme") as Theme) || "dark");
-  const [viewMode, setViewMode] = useState<ViewMode>(() => (localStorage.getItem("viewMode") as ViewMode) || "split");
+  const {
+    settings,
+    update: updateSettings,
+    reset: resetSettings,
+    t,
+    loaded,
+    platform
+  } = useSettings();
+
+  const [status, setStatus] = useState("…");
+  const [theme, setTheme] = useState<Theme>(
+    () => (localStorage.getItem("theme") as Theme) || "dark"
+  );
+  const [viewMode, setViewMode] = useState<ViewMode>(
+    () => (localStorage.getItem("viewMode") as ViewMode) || "split"
+  );
   const [query, setQuery] = useState("");
   const [replacement, setReplacement] = useState("");
+  const [findSettings, setFindSettings] = useState<FindSettings>({
+    regex: false,
+    caseSensitive: false
+  });
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [spelling, setSpelling] = useState<{ word: string; suggestions: string[] } | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [showImageDialog, setShowImageDialog] = useState(false);
   const [showTableDialog, setShowTableDialog] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [contextTarget, setContextTarget] = useState<ContextTarget>("editor");
   const [workspaceSearchOpen, setWorkspaceSearchOpen] = useState(false);
+  const [outlineOpen, setOutlineOpen] = useState(() => readStoredBoolean("outlineOpen", false));
+  const [fileTreeOpen, setFileTreeOpen] = useState(() => readStoredBoolean("fileTreeOpen", false));
+  const [focusMode, setFocusMode] = useState(false);
+  const [treeRoot, setTreeRoot] = useState<string | null>(null);
+  const [activeHeadingId, setActiveHeadingId] = useState<string | null>(null);
 
-  const fm = useTabManager(setStatus);
+  const fm = useTabManager(setStatus, t, settings, loaded);
   const { content, setContent, filePath, fileName, dirty, setDirty, recentFiles } = fm;
 
-  const html = useMarkdownPreview(content, filePath);
+  const previewOptions = useMemo(
+    () => ({ math: settings.mathEnabled, mermaid: settings.mermaidEnabled }),
+    [settings.mathEnabled, settings.mermaidEnabled]
+  );
+  const html = useMarkdownPreview(content, filePath, previewOptions);
   const stats = useMemo(() => getDocStats(content), [content]);
-  const editor = useEditorActions(editorRef, content, setContent, setDirty, setStatus);
+  const outline = useMemo(() => extractOutline(content), [content]);
+
+  const editor = useEditorActions(editorRef, content, setContent, setDirty, setStatus, t, filePath);
+
+  /**
+   * Export the live preview DOM, not the raw render: Mermaid diagrams only
+   * exist as SVG after the client-side pass.
+   */
+  const getExportHtml = useCallback(() => previewRef.current?.innerHTML ?? html, [html]);
   const { exportPdf, exportHtml, exportDocx, openPrintPreview } = useExport(
     filePath,
-    html,
+    getExportHtml,
     fileName,
     theme,
-    setStatus
+    setStatus,
+    t
   );
 
-  useScrollSync(editorRef, previewRef, viewMode);
+  useScrollSync(editorRef, previewRef, viewMode, html);
+
+  useEffect(() => {
+    if (loaded) setStatus((current) => (current === "…" ? t("app.ready") : current));
+  }, [loaded, t]);
 
   const extensions = useMemo(
     () => [
@@ -95,34 +158,91 @@ function App() {
       EditorView.lineWrapping,
       EditorView.theme({
         "&": { height: "100%" },
-        ".cm-scroller": { fontFamily: "\"Cascadia Code\", Consolas, monospace" },
+        ".cm-scroller": {
+          fontFamily: '"Cascadia Code", Consolas, monospace',
+          fontSize: `${settings.editorFontSize}px`
+        },
         ".cm-content": { padding: "18px" },
         ".cm-line": { lineHeight: "1.65" }
       }),
       ...editor.clipboardExtension
     ],
-    [editor.clipboardExtension]
+    [editor.clipboardExtension, settings.editorFontSize]
   );
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     applyDocumentThemeToRoot(document.documentElement, theme);
-    localStorage.setItem("theme", theme);
+    storeValue("theme", theme);
   }, [theme]);
 
   useEffect(() => {
-    localStorage.setItem("viewMode", viewMode);
-  }, [viewMode]);
+    document.documentElement.style.setProperty(
+      "--preview-font-size",
+      `${settings.previewFontSize}px`
+    );
+  }, [settings.previewFontSize]);
+
+  useEffect(() => storeValue("viewMode", viewMode), [viewMode]);
+  useEffect(() => storeValue("outlineOpen", String(outlineOpen)), [outlineOpen]);
+  useEffect(() => storeValue("fileTreeOpen", String(fileTreeOpen)), [fileTreeOpen]);
+
+  /** Render Mermaid diagrams whenever the preview HTML or theme changes. */
+  useEffect(() => {
+    if (!settings.mermaidEnabled) return;
+    void renderMermaidDiagrams(previewRef.current, theme);
+  }, [html, theme, settings.mermaidEnabled]);
+
+  const startupLoaded = useRef(false);
+  useEffect(() => {
+    if (!loaded || startupLoaded.current) return;
+    startupLoaded.current = true;
+    void fm.loadStartupFile();
+  }, [loaded, fm]);
 
   useEffect(() => {
-    void fm.loadStartupFile();
     return window.markdownStudio.onStartupFileChanged(() => {
       void fm.loadStartupFile();
     });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fm]);
 
   useEffect(() => {
-    const dismiss = () => setContextMenu(null);
+    return window.markdownStudio.onUpdateStatus((update: UpdateStatus) => {
+      switch (update.kind) {
+        case "available":
+          setStatus(t("status.updateAvailable", { version: update.version }));
+          break;
+        case "downloaded":
+          setStatus(t("status.updateDownloaded"));
+          break;
+        case "none":
+          setStatus(t("status.updateNone"));
+          break;
+        case "error":
+          setStatus(t("status.updateError", { message: update.message }));
+          break;
+        default:
+          break;
+      }
+    });
+  }, [t]);
+
+  /** Spelling suggestions for the word the user right-clicked. */
+  useEffect(() => {
+    return window.markdownStudio.onSpellContext((payload: SpellContextPayload) => {
+      setSpelling(
+        payload.misspelledWord
+          ? { word: payload.misspelledWord, suggestions: payload.suggestions ?? [] }
+          : null
+      );
+    });
+  }, []);
+
+  useEffect(() => {
+    const dismiss = () => {
+      setContextMenu(null);
+      setSpelling(null);
+    };
     window.addEventListener("click", dismiss);
     window.addEventListener("keydown", dismiss);
     window.addEventListener("resize", dismiss);
@@ -135,6 +255,14 @@ function App() {
 
   const menuHandlerRef = useRef<(action: string) => void>(() => {});
 
+  async function pickTreeFolder() {
+    const folder = await window.markdownStudio.pickFolder();
+    if (folder) {
+      setTreeRoot(folder);
+      setFileTreeOpen(true);
+    }
+  }
+
   const handleMenuAction = (action: string) => {
     switch (action) {
       case "new":
@@ -142,6 +270,9 @@ function App() {
         break;
       case "open":
         void fm.open();
+        break;
+      case "openFolder":
+        void pickTreeFolder();
         break;
       case "save":
         void fm.save();
@@ -164,17 +295,11 @@ function App() {
       case "workspaceSearch":
         setWorkspaceSearchOpen(true);
         break;
+      case "settings":
+        setShowSettings(true);
+        break;
       case "closeTab":
-        fm.closeTab(fm.activeId);
-        break;
-      case "copy":
-        void copyFromContext();
-        break;
-      case "paste":
-        void pasteFromContext();
-        break;
-      case "cut":
-        void editor.cutSelection();
+        void fm.closeTab(fm.activeId);
         break;
       case "viewSplit":
         setViewMode("split");
@@ -184,6 +309,15 @@ function App() {
         break;
       case "viewPreview":
         setViewMode("preview");
+        break;
+      case "toggleOutline":
+        setOutlineOpen((value) => !value);
+        break;
+      case "toggleFileTree":
+        setFileTreeOpen((value) => !value);
+        break;
+      case "toggleFocusMode":
+        setFocusMode((value) => !value);
         break;
       case "themeLight":
         setTheme("light");
@@ -216,6 +350,10 @@ function App() {
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && focusMode) {
+        setFocusMode(false);
+        return;
+      }
       if (!event.ctrlKey) return;
       const key = event.key.toLowerCase();
       if (key === "s" && event.shiftKey) {
@@ -232,7 +370,7 @@ function App() {
         fm.newDocument();
       } else if (key === "w") {
         event.preventDefault();
-        fm.closeTab(fm.activeId);
+        void fm.closeTab(fm.activeId);
       } else if (key === "f" && event.shiftKey) {
         event.preventDefault();
         setWorkspaceSearchOpen(true);
@@ -250,48 +388,44 @@ function App() {
         void exportHtml();
       } else if (key === "b") {
         event.preventDefault();
-        editor.wrapSelection("**", "**", "pogrubiony tekst");
+        editor.wrapSelection("**", "**", t("format.placeholderBold"));
       } else if (key === "i") {
         event.preventDefault();
-        editor.wrapSelection("*", "*", "kursywa");
+        editor.wrapSelection("*", "*", t("format.placeholderItalic"));
+      } else if (key === ",") {
+        event.preventDefault();
+        setShowSettings(true);
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [fm, editor, exportPdf, exportHtml, exportDocx, openPrintPreview]);
-
-  function jumpToLine(line: number) {
-    const view = editorRef.current?.view;
-    if (!view) return;
-    const n = Math.min(Math.max(1, line), view.state.doc.lines);
-    const docLine = view.state.doc.line(n);
-    view.dispatch({ selection: { anchor: docLine.from }, scrollIntoView: true });
-    view.focus();
-  }
+  }, [fm, editor, exportPdf, exportHtml, exportDocx, openPrintPreview, focusMode, t]);
 
   async function openSearchHit(path: string, line: number) {
     await fm.openRecentFile(path);
-    window.setTimeout(() => jumpToLine(line), 80);
+    window.setTimeout(() => editor.jumpToLine(line), 80);
   }
 
+  /** Drag & drop of .md files onto the window. */
   useEffect(() => {
-    const onDragOver = (e: DragEvent) => {
-      e.preventDefault();
-      e.dataTransfer!.dropEffect = "copy";
+    const onDragOver = (event: DragEvent) => {
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
       setDragOver(true);
     };
-    const onDragLeave = (e: DragEvent) => {
-      if (e.relatedTarget == null) setDragOver(false);
+    const onDragLeave = (event: DragEvent) => {
+      if (event.relatedTarget == null) setDragOver(false);
     };
-    const onDrop = (e: DragEvent) => {
-      e.preventDefault();
+    const onDrop = (event: DragEvent) => {
+      event.preventDefault();
       setDragOver(false);
-      const file = e.dataTransfer?.files[0];
+      const file = event.dataTransfer?.files[0];
       if (!file) return;
-      const path = (file as File & { path: string }).path;
+      // `File.path` was removed in Electron 32; webUtils is the replacement.
+      const path = window.markdownStudio.getPathForFile(file);
       if (!path) return;
-      const ext = path.split(".").pop()?.toLowerCase() ?? "";
-      if (!MARKDOWN_EXTENSIONS.includes(ext as (typeof MARKDOWN_EXTENSIONS)[number])) return;
+      const extension = path.split(".").pop()?.toLowerCase() ?? "";
+      if (!MARKDOWN_EXTENSIONS.includes(extension as (typeof MARKDOWN_EXTENSIONS)[number])) return;
       void fm.openRecentFile(path);
     };
     window.addEventListener("dragover", onDragOver);
@@ -307,7 +441,7 @@ function App() {
   async function copyPreviewSelection() {
     const part = getPreviewCopySelection(previewRef.current);
     if (!part.ok) {
-      if (part.reason === "empty") setStatus("Podgląd jest pusty — nic do skopiowania");
+      if (part.reason === "empty") setStatus(t("status.previewEmpty"));
       return false;
     }
 
@@ -318,97 +452,158 @@ function App() {
         if (ok) {
           setStatus(
             payload.scope === "selection"
-              ? "Skopiowano zaznaczenie z podglądu (z formatowaniem)"
-              : "Skopiowano cały podgląd (z formatowaniem)"
+              ? t("status.copiedPreviewSelectionRich")
+              : t("status.copiedPreviewRich")
           );
           return true;
         }
       }
     } catch {
-      /* fallback do zwykłego tekstu */
+      /* fall back to plain text */
     }
 
-    const ok = writeClipboardText(part.text!);
+    const ok = await writeClipboardText(part.text!);
     if (!ok) {
-      setStatus("Nie udało się skopiować podglądu do schowka");
+      setStatus(t("status.copyFailed"));
       return false;
     }
     setStatus(
       part.scope === "selection"
-        ? "Skopiowano zaznaczenie z podglądu (tekst)"
-        : "Skopiowano cały podgląd (tekst)"
+        ? t("status.copiedPreviewSelectionText")
+        : t("status.copiedPreviewText")
     );
     return true;
   }
 
   function selectionIsInPreview() {
-    const sel = window.getSelection();
+    const selection = window.getSelection();
     return Boolean(
-      sel && !sel.isCollapsed && sel.rangeCount > 0 && previewRef.current?.contains(sel.anchorNode)
+      selection &&
+      !selection.isCollapsed &&
+      selection.rangeCount > 0 &&
+      previewRef.current?.contains(selection.anchorNode)
     );
   }
 
   async function copyFromContext() {
-    if (contextTarget === "preview" || selectionIsInPreview()) {
-      await copyPreviewSelection();
-    } else {
-      editor.copySelection();
-    }
+    if (contextTarget === "preview" || selectionIsInPreview()) await copyPreviewSelection();
+    else await editor.copySelection();
   }
 
   async function pasteFromContext() {
     if (contextTarget === "preview" || selectionIsInPreview()) {
-      setStatus("Wklejanie działa w edytorze — kliknij w panel Edytor");
+      setStatus(t("status.pasteInEditor"));
       return;
     }
     await editor.pasteFromClipboard();
   }
 
-  function handlePreviewClick(e: React.MouseEvent<HTMLElement>) {
-    const heading = (e.target as HTMLElement).closest("h1, h2, h3, h4, h5, h6");
-    if (!heading) return;
-    const id = heading.id;
-    const text = heading.textContent ?? "";
-    if (id) editor.jumpToPreviewHeading(id, text);
+  /** Clicking a rendered block jumps the editor to its source line. */
+  function handlePreviewClick(event: React.MouseEvent<HTMLElement>) {
+    const target = (event.target as HTMLElement).closest<HTMLElement>("[data-line]");
+    if (!target) return;
+    const line = Number(target.dataset.line);
+    if (!Number.isFinite(line)) return;
+    editor.jumpToLine(line, true);
+  }
+
+  function selectOutlineItem(item: OutlineItem) {
+    setActiveHeadingId(item.id);
+    editor.jumpToLine(item.line);
+    const heading = previewRef.current?.querySelector<HTMLElement>(`[id="${CSS.escape(item.id)}"]`);
+    heading?.scrollIntoView({ block: "start", behavior: "smooth" });
   }
 
   const fileActions: ToolbarAction[] = [
-    { label: "Otwórz", icon: <FolderOpen size={17} />, run: fm.open },
-    { label: "Szukaj", icon: <FolderSearch size={17} />, run: () => setWorkspaceSearchOpen(true) },
-    { label: "Zapisz", icon: <Save size={17} />, run: fm.save },
-    { label: "Zapisz jako", icon: <Download size={17} />, run: fm.saveAs },
-    { label: "PDF", icon: <FileDown size={17} />, run: exportPdf },
-    { label: "HTML", icon: <FileDown size={17} />, run: exportHtml },
-    { label: "DOCX", icon: <FileDown size={17} />, run: exportDocx },
-    { label: "Wydruk", icon: <Printer size={17} />, run: openPrintPreview }
+    { label: t("toolbar.open"), icon: <FolderOpen size={17} />, run: fm.open },
+    {
+      label: t("toolbar.search"),
+      icon: <FolderSearch size={17} />,
+      run: () => setWorkspaceSearchOpen(true)
+    },
+    { label: t("toolbar.save"), icon: <Save size={17} />, run: fm.save },
+    { label: t("toolbar.saveAs"), icon: <Download size={17} />, run: fm.saveAs },
+    { label: t("toolbar.pdf"), icon: <FileDown size={17} />, run: exportPdf },
+    { label: t("toolbar.html"), icon: <FileDown size={17} />, run: exportHtml },
+    { label: t("toolbar.docx"), icon: <FileDown size={17} />, run: exportDocx },
+    { label: t("toolbar.print"), icon: <Printer size={17} />, run: openPrintPreview }
   ];
 
   const formatActions: ToolbarAction[] = [
-    { label: "H1", icon: <Heading1 size={17} />, run: () => editor.prefixLine("# ") },
-    { label: "H2", icon: <Heading2 size={17} />, run: () => editor.prefixLine("## ") },
-    { label: "Pogrubienie", icon: <Bold size={17} />, run: () => editor.wrapSelection("**", "**", "tekst") },
-    { label: "Kursywa", icon: <Italic size={17} />, run: () => editor.wrapSelection("*", "*", "tekst") },
-    { label: "Cytat", icon: <Quote size={17} />, run: () => editor.prefixLine("> ") },
-    { label: "Lista", icon: <List size={17} />, run: () => editor.prefixLine("- ") },
-    { label: "Lista numerowana", icon: <ListOrdered size={17} />, run: () => editor.prefixLine("1. ") },
-    { label: "Kod", icon: <Code2 size={17} />, run: () => editor.wrapSelection("`", "`", "kod") },
-    { label: "Link", icon: <Link size={17} />, run: () => editor.wrapSelection("[", "](https://)", "opis") },
-    { label: "Kopiuj", icon: <Clipboard size={17} />, run: () => void copyFromContext() },
-    { label: "Wklej", icon: <ClipboardPaste size={17} />, run: () => void editor.pasteFromClipboard() },
-    { label: "Grafika", icon: <ImagePlus size={17} />, run: () => setShowImageDialog(true) },
-    { label: "Tabela", icon: <Table2 size={17} />, run: () => setShowTableDialog(true) }
+    { label: t("format.h1"), icon: <Heading1 size={17} />, run: () => editor.prefixLine("# ") },
+    { label: t("format.h2"), icon: <Heading2 size={17} />, run: () => editor.prefixLine("## ") },
+    {
+      label: t("format.bold"),
+      icon: <Bold size={17} />,
+      run: () => editor.wrapSelection("**", "**", t("format.placeholderText"))
+    },
+    {
+      label: t("format.italic"),
+      icon: <Italic size={17} />,
+      run: () => editor.wrapSelection("*", "*", t("format.placeholderText"))
+    },
+    {
+      label: t("format.strike"),
+      icon: <Strikethrough size={17} />,
+      run: () => editor.wrapSelection("~~", "~~", t("format.placeholderText"))
+    },
+    { label: t("format.quote"), icon: <Quote size={17} />, run: () => editor.prefixLine("> ") },
+    { label: t("format.list"), icon: <List size={17} />, run: () => editor.prefixLine("- ") },
+    {
+      label: t("format.orderedList"),
+      icon: <ListOrdered size={17} />,
+      run: () => editor.prefixLine("1. ")
+    },
+    {
+      label: t("format.task"),
+      icon: <ListChecks size={17} />,
+      run: () => editor.prefixLine("- [ ] ")
+    },
+    {
+      label: t("format.code"),
+      icon: <Code2 size={17} />,
+      run: () => editor.wrapSelection("`", "`", t("format.placeholderCode"))
+    },
+    {
+      label: t("format.link"),
+      icon: <Link size={17} />,
+      run: () => editor.wrapSelection("[", "](https://)", t("format.placeholderLink"))
+    },
+    { label: t("format.copy"), icon: <Clipboard size={17} />, run: () => void copyFromContext() },
+    {
+      label: t("format.paste"),
+      icon: <ClipboardPaste size={17} />,
+      run: () => void editor.pasteFromClipboard()
+    },
+    {
+      label: t("format.image"),
+      icon: <ImagePlus size={17} />,
+      run: () => setShowImageDialog(true)
+    },
+    { label: t("format.table"), icon: <Table2 size={17} />, run: () => setShowTableDialog(true) }
   ];
+
+  const shellClasses = [
+    "app-shell",
+    dragOver ? "drag-over" : "",
+    workspaceSearchOpen ? "with-search" : "",
+    outlineOpen ? "with-outline" : "",
+    fileTreeOpen ? "with-filetree" : "",
+    focusMode ? "focus-mode" : ""
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <div
-      className={`app-shell${dragOver ? " drag-over" : ""}${workspaceSearchOpen ? " with-search" : ""}`}
-      onContextMenu={(e) => {
-        e.preventDefault();
-        const inPreview = previewRef.current?.contains(e.target as Node) ?? false;
+      className={shellClasses}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        const inPreview = previewRef.current?.contains(event.target as Node) ?? false;
         setContextTarget(inPreview ? "preview" : "editor");
         setContextMenu({
-          x: Math.min(e.clientX, window.innerWidth - 228),
-          y: Math.min(e.clientY, window.innerHeight - 280)
+          x: Math.min(event.clientX, window.innerWidth - 228),
+          y: Math.min(event.clientY, window.innerHeight - 320)
         });
       }}
     >
@@ -420,41 +615,64 @@ function App() {
         theme={theme}
         recentFiles={recentFiles}
         fileActions={fileActions}
+        outlineOpen={outlineOpen}
+        fileTreeOpen={fileTreeOpen}
+        focusMode={focusMode}
         onViewModeChange={setViewMode}
         onThemeToggle={() => setTheme(theme === "dark" ? "light" : "dark")}
-        onOpenRecentFile={fm.openRecentFile}
+        onOpenRecentFile={(path) => void fm.openRecentFile(path)}
+        onToggleOutline={() => setOutlineOpen((value) => !value)}
+        onToggleFileTree={() => setFileTreeOpen((value) => !value)}
+        onToggleFocusMode={() => setFocusMode((value) => !value)}
+        onOpenSettings={() => setShowSettings(true)}
+        t={t}
       />
       <TabBar
         tabs={fm.tabs}
         activeId={fm.activeId}
         onSwitch={fm.switchTab}
-        onClose={fm.closeTab}
+        onClose={(id) => void fm.closeTab(id)}
         onNew={fm.newDocument}
         onNewTemplate={fm.newDocumentFromTemplate}
+        t={t}
       />
       <WorkspaceSearch
         open={workspaceSearchOpen}
-        initialFolder={searchFolderFromFilePath(filePath)}
+        initialFolder={dirnameOf(filePath ?? "") || null}
         onClose={() => setWorkspaceSearchOpen(false)}
         onOpenHit={(path, line) => void openSearchHit(path, line)}
         onStatus={setStatus}
+        t={t}
       />
       <FormatBar
         formatActions={formatActions}
         query={query}
         replacement={replacement}
+        findSettings={findSettings}
+        onFindSettingsChange={setFindSettings}
         onQueryChange={setQuery}
         onReplacementChange={setReplacement}
-        onFindNext={() => editor.findNext(query)}
-        onReplaceOne={() => editor.replaceOne(query, replacement)}
-        onReplaceAll={() => editor.replaceAll(query, replacement)}
+        onFindNext={() => editor.findNext(query, findSettings)}
+        onReplaceOne={() => editor.replaceOne(query, replacement, findSettings)}
+        onReplaceAll={() => editor.replaceAll(query, replacement, findSettings)}
+        t={t}
       />
 
       <main className={`workspace ${viewMode}`}>
-        <section className="editor-pane" aria-label="Edytor Markdown">
+        {fileTreeOpen && (
+          <FileTree
+            rootPath={treeRoot}
+            activeFilePath={filePath}
+            onPickFolder={() => void pickTreeFolder()}
+            onOpenFile={(path) => void fm.openRecentFile(path)}
+            t={t}
+          />
+        )}
+
+        <section className="editor-pane" aria-label={t("pane.editor")}>
           <div className="pane-title">
             <AlignLeft size={15} />
-            <span>Edytor</span>
+            <span>{t("pane.editor")}</span>
           </div>
           <CodeMirror
             ref={editorRef}
@@ -477,20 +695,20 @@ function App() {
           />
         </section>
 
-        <section className="preview-pane" aria-label="Podgląd dokumentu">
+        <section className="preview-pane" aria-label={t("pane.preview")}>
           <div className="pane-title pane-title-actions">
             <span className="pane-title-label">
               <Eye size={15} />
-              <span>Podgląd</span>
+              <span>{t("pane.preview")}</span>
             </span>
             <button
               type="button"
               className="pane-action"
-              title="Kopiuj podgląd z formatowaniem"
+              title={t("pane.copyPreview")}
               onClick={() => void copyPreviewSelection()}
             >
               <Clipboard size={14} />
-              <span>Kopiuj</span>
+              <span>{t("format.copy")}</span>
             </button>
           </div>
           <article
@@ -501,28 +719,46 @@ function App() {
             onClick={handlePreviewClick}
           />
         </section>
+
+        {outlineOpen && (
+          <Outline items={outline} activeId={activeHeadingId} onSelect={selectOutlineItem} t={t} />
+        )}
       </main>
 
-      <StatusBar status={status} stats={stats} />
+      <StatusBar status={status} stats={stats} t={t} />
 
       {showImageDialog && (
         <ImageDialog
-          onInsert={(mdText) => {
-            editor.insertAtSelection(mdText);
+          onInsert={(markdownText) => {
+            editor.insertAtSelection(markdownText);
             setShowImageDialog(false);
           }}
           onClose={() => setShowImageDialog(false)}
           onPickFile={() => window.markdownStudio.pickImageFile()}
+          t={t}
         />
       )}
 
       {showTableDialog && (
         <TableDialog
-          onInsert={(mdText) => {
-            editor.insertAtSelection(mdText);
+          onInsert={(markdownText) => {
+            editor.insertAtSelection(markdownText);
             setShowTableDialog(false);
           }}
           onClose={() => setShowTableDialog(false)}
+          language={settings.language}
+          t={t}
+        />
+      )}
+
+      {showSettings && (
+        <SettingsDialog
+          settings={settings}
+          onChange={(patch) => void updateSettings(patch)}
+          onReset={() => void resetSettings()}
+          onClose={() => setShowSettings(false)}
+          isStoreBuild={platform.isStoreBuild}
+          t={t}
         />
       )}
 
@@ -530,6 +766,12 @@ function App() {
         <ContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
+          spelling={contextTarget === "editor" ? spelling : null}
+          onApplySuggestion={(suggestion) => {
+            setContextMenu(null);
+            setSpelling(null);
+            editor.replaceWordAtCursor(suggestion);
+          }}
           onSave={() => {
             setContextMenu(null);
             void fm.save();
@@ -562,6 +804,7 @@ function App() {
             setContextMenu(null);
             void window.markdownStudio.closeWindow();
           }}
+          t={t}
         />
       )}
     </div>
@@ -570,6 +813,8 @@ function App() {
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </React.StrictMode>
 );

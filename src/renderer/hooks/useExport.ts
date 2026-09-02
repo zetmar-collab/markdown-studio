@@ -1,52 +1,75 @@
 import { useCallback } from "react";
+import type { Translator } from "../../shared/i18n";
 import type { Theme } from "../renderer-types";
 
+/**
+ * `getHtml` returns what the user is actually looking at (the live preview DOM),
+ * falling back to the rendered string. This matters for Mermaid diagrams and
+ * anything else the renderer produces after the markdown pass: exporting the
+ * raw string would ship the un-rendered source instead.
+ */
 export function useExport(
   filePath: string | null,
-  html: string,
+  getHtml: () => string,
   fileName: string,
   theme: Theme,
-  setStatus: (msg: string) => void
+  setStatus: (msg: string) => void,
+  t: Translator
 ) {
+  const payload = useCallback(
+    () => ({ filePath, html: getHtml(), title: fileName, theme }),
+    [filePath, fileName, getHtml, theme]
+  );
+
   const exportPdf = useCallback(async () => {
-    setStatus("Eksport PDF...");
+    setStatus(t("status.exportingPdf"));
     try {
-      const result = await window.markdownStudio.exportPdf({ filePath, html, title: fileName, theme });
-      setStatus(result ? `Wyeksportowano PDF: ${result.filePath}` : "Anulowano eksport PDF");
+      const result = await window.markdownStudio.exportPdf(payload());
+      setStatus(
+        result ? t("status.exportedPdf", { path: result.filePath }) : t("status.cancelledPdf")
+      );
     } catch (error) {
-      setStatus(`Błąd eksportu PDF: ${error instanceof Error ? error.message : "nieznany błąd"}`);
+      setStatus(t("status.errorPdf", { message: messageOf(error) }));
     }
-  }, [filePath, html, fileName, theme, setStatus]);
+  }, [payload, setStatus, t]);
 
   const exportHtml = useCallback(async () => {
-    setStatus("Eksport HTML...");
+    setStatus(t("status.exportingHtml"));
     try {
-      const result = await window.markdownStudio.exportHtml({ filePath, html, title: fileName, theme });
-      setStatus(result ? `Wyeksportowano HTML: ${result.filePath}` : "Anulowano eksport HTML");
+      const result = await window.markdownStudio.exportHtml(payload());
+      setStatus(
+        result ? t("status.exportedHtml", { path: result.filePath }) : t("status.cancelledHtml")
+      );
     } catch (error) {
-      setStatus(`Błąd eksportu HTML: ${error instanceof Error ? error.message : "nieznany błąd"}`);
+      setStatus(t("status.errorHtml", { message: messageOf(error) }));
     }
-  }, [filePath, html, fileName, theme, setStatus]);
+  }, [payload, setStatus, t]);
 
   const exportDocx = useCallback(async () => {
-    setStatus("Eksport DOCX...");
+    setStatus(t("status.exportingDocx"));
     try {
-      const result = await window.markdownStudio.exportDocx({ filePath, html, title: fileName, theme });
-      setStatus(result ? `Wyeksportowano DOCX: ${result.filePath}` : "Anulowano eksport DOCX");
+      const result = await window.markdownStudio.exportDocx(payload());
+      setStatus(
+        result ? t("status.exportedDocx", { path: result.filePath }) : t("status.cancelledDocx")
+      );
     } catch (error) {
-      setStatus(`Błąd eksportu DOCX: ${error instanceof Error ? error.message : "nieznany błąd"}`);
+      setStatus(t("status.errorDocx", { message: messageOf(error) }));
     }
-  }, [filePath, html, fileName, theme, setStatus]);
+  }, [payload, setStatus, t]);
 
   const openPrintPreview = useCallback(async () => {
-    setStatus("Otwieranie podglądu wydruku...");
+    setStatus(t("status.openingPrint"));
     try {
-      const ok = await window.markdownStudio.openPrintPreview({ filePath, html, title: fileName, theme });
-      setStatus(ok ? "Podgląd wydruku — użyj przycisku Drukuj w oknie" : "Anulowano podgląd wydruku");
+      const ok = await window.markdownStudio.openPrintPreview(payload());
+      setStatus(ok ? t("status.printReady") : t("status.printCancelled"));
     } catch (error) {
-      setStatus(`Błąd podglądu wydruku: ${error instanceof Error ? error.message : "nieznany błąd"}`);
+      setStatus(t("status.errorPrint", { message: messageOf(error) }));
     }
-  }, [filePath, html, fileName, theme, setStatus]);
+  }, [payload, setStatus, t]);
 
   return { exportPdf, exportHtml, exportDocx, openPrintPreview };
+}
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : "unknown";
 }

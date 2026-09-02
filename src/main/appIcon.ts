@@ -23,7 +23,7 @@ function iconCandidates(): string[] {
   return paths;
 }
 
-/** Custom Markdown Studio icon (build/icon.ico or .png). */
+/** Custom Studio Markdown icon (build/icon.ico or .png). */
 export function getAppIcon(): Electron.NativeImage {
   if (cached && !cached.isEmpty()) return cached;
 
