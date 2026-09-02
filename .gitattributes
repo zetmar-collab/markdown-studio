@@ -1,0 +1,11 @@
+# Keep line endings identical on every platform.
+#
+# Prettier checks against LF. Without this, a Windows checkout converts the
+# whole tree to CRLF and `npm run format:check` fails on CI even though the
+# committed content is unchanged.
+* text=auto eol=lf
+
+# Generated and binary assets must never be converted.
+*.png binary
+*.ico binary
+*.appx binary
