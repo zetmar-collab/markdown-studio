@@ -47,6 +47,7 @@ import { readRecentFiles, readSession, writeRecentFiles, writeSession } from "./
 import { forgetOwnWrite, noteOwnWrite, watchFile, type WatchHandle } from "./fileWatchers.js";
 import { cleanupTempFiles, removeTempFile, writeTempHtml } from "./tempFiles.js";
 import { listFolder } from "./fileTree.js";
+import { buildRecentMenuEntries } from "./recentMenu.js";
 import {
   checkForUpdates,
   checkForUpdatesInBackground,
@@ -88,6 +89,13 @@ interface WindowState {
 }
 
 const windows = new Map<number, WindowState>();
+
+/**
+ * The renderer owns the recent-files list, but the native File menu has to
+ * render it too, so the main process keeps a copy and rebuilds the menu
+ * whenever the list changes.
+ */
+let recentFilesCache: string[] = [];
 
 function t(key: TranslationKey, params?: Record<string, string | number>): string {
   return createTranslator(getSettings().language)(key, params);
@@ -382,6 +390,7 @@ function menuTemplate(): MenuItemConstructorOptions[] {
         { label: t("menu.new"), accelerator: "CmdOrCtrl+N", click: () => sendMenuAction("new") },
         { label: t("menu.open"), accelerator: "CmdOrCtrl+O", click: () => sendMenuAction("open") },
         { label: t("menu.openFolder"), click: () => sendMenuAction("openFolder") },
+        { label: t("menu.recentFiles"), submenu: recentFilesSubmenu() },
         { type: "separator" },
         { label: t("menu.save"), accelerator: "CmdOrCtrl+S", click: () => sendMenuAction("save") },
         {
@@ -532,6 +541,32 @@ function menuTemplate(): MenuItemConstructorOptions[] {
             ] as MenuItemConstructorOptions[])),
         { label: t("menu.about"), click: () => showAboutDialog() }
       ]
+    }
+  ];
+}
+
+function recentFilesSubmenu(): MenuItemConstructorOptions[] {
+  if (!recentFilesCache.length) {
+    return [{ label: t("menu.recentEmpty"), enabled: false }];
+  }
+  return [
+    ...buildRecentMenuEntries(recentFilesCache).map(({ label, filePath }) => ({
+      label,
+      toolTip: filePath,
+      click: () => {
+        focusedState()?.window.webContents.send("file:openRecent", filePath);
+      }
+    })),
+    { type: "separator" as const },
+    {
+      label: t("menu.clearRecent"),
+      click: () => {
+        void (async () => {
+          recentFilesCache = await writeRecentFiles([]);
+          setupApplicationMenu();
+          broadcast("recent:changed", recentFilesCache);
+        })();
+      }
     }
   ];
 }
@@ -777,7 +812,11 @@ ipcMain.handle("settings:reset", async () => {
 ipcMain.handle("session:read", async () => readSession());
 ipcMain.handle("session:write", async (_event, session: unknown) => writeSession(session));
 ipcMain.handle("recent:read", async () => readRecentFiles());
-ipcMain.handle("recent:write", async (_event, paths: unknown) => writeRecentFiles(paths));
+ipcMain.handle("recent:write", async (_event, paths: unknown) => {
+  recentFilesCache = await writeRecentFiles(paths);
+  setupApplicationMenu();
+  return recentFilesCache;
+});
 
 /* ------------------------------------------------------------------ *
  * IPC: clipboard
@@ -1055,6 +1094,7 @@ app.whenReady().then(async () => {
     app.setAppUserModelId("pl.marek.markdownstudio");
   }
   await loadSettings();
+  recentFilesCache = await readRecentFiles();
   registerAssetProtocol();
   setupApplicationMenu();
   setupJumpList();

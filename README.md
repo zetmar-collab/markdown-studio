@@ -42,6 +42,8 @@ Wersja instalowana sprawdza aktualizacje przy starcie (można wyłączyć w Usta
 - Znajdź/zamień z obsługą wyrażeń regularnych i wielkości liter
 - Sprawdzanie pisowni z podpowiedziami w menu kontekstowym (domyślnie `pl-PL`)
 - Zakładki, sesja po restarcie, autozapis (konfigurowalny)
+- Lista 10 ostatnio otwartych plików w menu **Plik → Ostatnio otwarte**
+  (przeżywa restart, martwe wpisy znikają same)
 
 ### Podgląd
 - Diagramy **Mermaid**

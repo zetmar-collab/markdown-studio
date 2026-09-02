@@ -52,6 +52,8 @@ export function useTabManager(
 
   useEffect(() => {
     void window.markdownStudio.readRecentFiles().then(setRecentFiles);
+    // The native File menu can clear the list, so keep the UI in step with it.
+    return window.markdownStudio.onRecentFilesChanged(setRecentFiles);
   }, []);
 
   const addToRecent = useCallback((path: string) => {

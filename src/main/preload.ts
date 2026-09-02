@@ -31,6 +31,9 @@ contextBridge.exposeInMainWorld("markdownStudio", {
   setWatchedFile: (filePath: string | null) => ipcRenderer.invoke("file:setWatched", filePath),
   onExternalFileChange: (callback: (filePath: string) => void) =>
     subscribe<[string]>("file:externalChange", callback),
+  /** File > Recent files picked an entry. */
+  onOpenRecentPath: (callback: (filePath: string) => void) =>
+    subscribe<[string]>("file:openRecent", callback),
 
   /**
    * Electron 32 removed `File.path`, which silently broke drag & drop: every
@@ -59,6 +62,8 @@ contextBridge.exposeInMainWorld("markdownStudio", {
   writeSession: (session: unknown) => ipcRenderer.invoke("session:write", session),
   readRecentFiles: () => ipcRenderer.invoke("recent:read"),
   writeRecentFiles: (paths: unknown) => ipcRenderer.invoke("recent:write", paths),
+  onRecentFilesChanged: (callback: (paths: string[]) => void) =>
+    subscribe<[string[]]>("recent:changed", callback),
 
   /* clipboard */
   readClipboardText: () => ipcRenderer.invoke("clipboard:readText"),

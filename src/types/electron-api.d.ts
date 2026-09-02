@@ -106,6 +106,7 @@ export interface ElectronApi {
   saveFileAs: (payload: SavePayload) => Promise<MarkdownFile | null>;
   setWatchedFile: (filePath: string | null) => Promise<void>;
   onExternalFileChange: (callback: (filePath: string) => void) => () => void;
+  onOpenRecentPath: (callback: (filePath: string) => void) => () => void;
   getPathForFile: (file: File) => string | null;
 
   /* folders */
@@ -121,6 +122,7 @@ export interface ElectronApi {
   writeSession: (session: SavedSession) => Promise<boolean>;
   readRecentFiles: () => Promise<string[]>;
   writeRecentFiles: (paths: string[]) => Promise<string[]>;
+  onRecentFilesChanged: (callback: (paths: string[]) => void) => () => void;
 
   /* clipboard */
   readClipboardText: () => Promise<string>;

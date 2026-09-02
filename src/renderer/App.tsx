@@ -207,6 +207,12 @@ function App() {
   }, [fm]);
 
   useEffect(() => {
+    return window.markdownStudio.onOpenRecentPath((path) => {
+      void fm.openRecentFile(path);
+    });
+  }, [fm]);
+
+  useEffect(() => {
     return window.markdownStudio.onUpdateStatus((update: UpdateStatus) => {
       switch (update.kind) {
         case "available":
