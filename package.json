@@ -1,6 +1,6 @@
 {
   "name": "markdown-studio",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Desktopowy edytor i podgląd Markdown dla Windows z eksportem PDF, HTML i DOCX.",
   "main": "dist-electron/main/main.js",
   "author": "Marek",

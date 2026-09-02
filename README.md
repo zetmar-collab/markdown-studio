@@ -140,8 +140,8 @@ Przed buildem skrypt zamyka Studio Markdown i czyści `out/pack/win-unpacked`. J
 ### Release na GitHub
 
 ```bash
-git tag v0.2.2
-git push origin v0.2.2
+git tag v0.3.1
+git push origin v0.3.1
 ```
 
 Workflow `.github/workflows/release.yml` zbuduje instalatory i dołączy je do GitHub Release.
@@ -187,7 +187,7 @@ wersja testowa różni się od wysyłanej wyłącznie podpisem.
 ### Instalacja pakietu testowego
 
 ```powershell
-Add-AppxPackage -Path .\out\store\StudioMarkdown-0.2.1-test-signed.appx
+Add-AppxPackage -Path .\out\store\StudioMarkdown-0.3.0-test-signed.appx
 ```
 
 Certyfikat musi być zaufany (`Cert:\LocalMachine\TrustedPeople`). Odinstalowanie:
