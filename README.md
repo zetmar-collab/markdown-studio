@@ -196,6 +196,47 @@ Certyfikat musi być zaufany (`Cert:\LocalMachine\TrustedPeople`). Odinstalowani
 Get-AppxPackage -Name MarekZettel-zetmar.StudioMarkdown | Remove-AppxPackage
 ```
 
+### Publikacja przez API
+
+Zamiast klikać w Partner Center, całe zgłoszenie można wysłać jednym poleceniem:
+
+```bash
+npm run dist:store                  # zbuduj pakiet dla bieżącej wersji
+npm run store:publish               # utwórz zgłoszenie i wgraj pakiet
+npm run store:publish -- --submit   # to samo + wyślij do certyfikacji
+```
+
+Bez `--submit` skrypt zatrzymuje się po wgraniu pakietu i zapisaniu notatek —
+zostawia wersję roboczą do przejrzenia. Wysłanie do certyfikacji jest publiczne
+i praktycznie nieodwracalne, więc nigdy nie dzieje się przy okazji builda.
+
+Notatki wydania (na język) są w [`store/release-notes.json`](store/release-notes.json).
+Skrypt oczyszcza poprzednie pakiety zgłoszenia i wgrywa `.appx` dla wersji
+z `package.json`.
+
+**Konfiguracja (jednorazowa).** API wymaga aplikacji Azure AD powiązanej z kontem
+w Partner Center:
+
+1. Partner Center → **Account settings → User management → Azure AD applications**
+   → dodaj aplikację i przypisz jej rolę **Manager**.
+2. W aplikacji utwórz **klucz (client secret)** i zanotuj go od razu — później
+   nie da się go odczytać.
+3. Ustaw zmienne środowiskowe:
+
+```powershell
+$env:PARTNER_TENANT_ID     = "<Tenant ID>"
+$env:PARTNER_CLIENT_ID     = "<Client ID>"
+$env:PARTNER_CLIENT_SECRET = "<Client secret>"
+```
+
+Sekretów nie trzymaj w repozytorium. W GitHub Actions wstaw je jako repository
+secrets i przekaż do kroku uruchamiającego `npm run store:publish`.
+
+Pakiet jest pakowany do ZIP-a **bez kompresji** — `.appx` jest już skompresowany,
+więc 190 MB pakuje się w ułamek sekundy zamiast kilku minut. Wysyłka do Azure
+Blob idzie blokami po 8 MB, z postępem i możliwością ponowienia pojedynczego
+bloku zamiast całego archiwum.
+
 ### Czym wersja ze sklepu różni się od instalatora
 
 Microsoft nie dopuszcza instalowania czegokolwiek spoza pakietu, więc wszystko,

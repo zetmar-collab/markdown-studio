@@ -34,7 +34,8 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"tests/**/*.ts\"",
     "dist:store": "node scripts/build-appx.mjs --store",
     "dist:store-test": "node scripts/build-appx.mjs --test",
-    "dist:store-all": "node scripts/build-appx.mjs --store --test"
+    "dist:store-all": "node scripts/build-appx.mjs --store --test",
+    "store:publish": "node scripts/store-publish.mjs"
   },
   "dependencies": {
     "@codemirror/lang-markdown": "^6.4.0",

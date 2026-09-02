@@ -5,14 +5,7 @@ import reactRefresh from "eslint-plugin-react-refresh";
 
 export default tseslint.config(
   {
-    ignores: [
-      "dist/**",
-      "dist-electron/**",
-      "out/**",
-      "build/**",
-      "node_modules/**",
-      "public/**"
-    ]
+    ignores: ["dist/**", "dist-electron/**", "out/**", "build/**", "node_modules/**", "public/**"]
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
@@ -53,7 +46,17 @@ export default tseslint.config(
         __dirname: "readonly",
         Buffer: "readonly",
         setTimeout: "readonly",
-        clearTimeout: "readonly"
+        clearTimeout: "readonly",
+        setInterval: "readonly",
+        clearInterval: "readonly",
+        // Web APIs that Node has exposed globally since 18.
+        fetch: "readonly",
+        Response: "readonly",
+        Headers: "readonly",
+        URL: "readonly",
+        URLSearchParams: "readonly",
+        TextEncoder: "readonly",
+        TextDecoder: "readonly"
       }
     }
   }
