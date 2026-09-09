@@ -93,6 +93,10 @@ contextBridge.exposeInMainWorld("markdownStudio", {
   onWillClose: (callback: () => void) => subscribe("app:willClose", callback),
   onSpellContext: (callback: (payload: unknown) => void) =>
     subscribe<[unknown]>("spell:context", callback),
+  getSpellLanguages: () => ipcRenderer.invoke("spell:availableLanguages"),
+  addWordToDictionary: (word: string) => ipcRenderer.invoke("spell:addWord", word),
+  removeWordFromDictionary: (word: string) => ipcRenderer.invoke("spell:removeWord", word),
+  listDictionaryWords: () => ipcRenderer.invoke("spell:listWords"),
   checkForUpdates: () => ipcRenderer.invoke("update:check"),
   onUpdateStatus: (callback: (status: unknown) => void) =>
     subscribe<[unknown]>("update:status", callback)

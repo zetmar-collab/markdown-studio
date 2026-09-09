@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  BookPlus,
   Clipboard,
   ClipboardPaste,
   FileDown,
@@ -15,6 +16,7 @@ interface ContextMenuProps {
   /** Spelling suggestions pushed by the main process for the word under the cursor. */
   spelling: { word: string; suggestions: string[] } | null;
   onApplySuggestion: (suggestion: string) => void;
+  onAddToDictionary: (word: string) => void;
   onSave: () => void;
   onCopy: () => void;
   onPaste: () => void;
@@ -31,6 +33,7 @@ export function ContextMenu({
   y,
   spelling,
   onApplySuggestion,
+  onAddToDictionary,
   onSave,
   onCopy,
   onPaste,
@@ -48,7 +51,7 @@ export function ContextMenu({
       role="menu"
       onContextMenu={(event) => event.preventDefault()}
     >
-      {spelling && spelling.suggestions.length > 0 && (
+      {spelling && (
         <>
           <div className="context-heading">
             <SpellCheck size={14} />
@@ -64,6 +67,10 @@ export function ContextMenu({
               <span>{suggestion}</span>
             </button>
           ))}
+          <button role="menuitem" onClick={() => onAddToDictionary(spelling.word)}>
+            <BookPlus size={16} />
+            <span>{t("menu.addToDictionary")}</span>
+          </button>
           <div className="context-separator" />
         </>
       )}

@@ -151,6 +151,11 @@ export interface ElectronApi {
   onMenuAction: (callback: (action: string) => void) => () => void;
   onWillClose: (callback: () => void) => () => void;
   onSpellContext: (callback: (payload: SpellContextPayload) => void) => () => void;
+  /** Every dictionary Chromium can download (57 at the time of writing). */
+  getSpellLanguages: () => Promise<string[]>;
+  addWordToDictionary: (word: string) => Promise<boolean>;
+  removeWordFromDictionary: (word: string) => Promise<boolean>;
+  listDictionaryWords: () => Promise<string[]>;
   checkForUpdates: () => Promise<UpdateStatus>;
   onUpdateStatus: (callback: (status: UpdateStatus) => void) => () => void;
 }

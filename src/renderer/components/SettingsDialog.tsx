@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import type { Translator } from "../../shared/i18n";
 import { LANGUAGES } from "../../shared/i18n";
 import { PAGE_SIZES, type AppSettings } from "../../shared/settings";
+import { SpellcheckPanel } from "./SpellcheckPanel";
 
 interface SettingsDialogProps {
   settings: AppSettings;
@@ -14,8 +15,6 @@ interface SettingsDialogProps {
 }
 
 const LANGUAGE_LABELS: Record<string, string> = { pl: "Polski", en: "English" };
-
-const SPELLCHECK_CHOICES = ["pl-PL", "en-US", "en-GB", "de-DE", "fr-FR", "es-ES"];
 
 export function SettingsDialog({
   settings,
@@ -119,20 +118,16 @@ export function SettingsDialog({
             <span>{t("settings.spellcheck")}</span>
           </label>
 
-          <label className="modal-field">
+          <div className="modal-field modal-field-wide">
             <span>{t("settings.spellcheckLanguage")}</span>
-            <select
-              disabled={!settings.spellcheckEnabled}
-              value={settings.spellcheckLanguages[0] ?? "pl-PL"}
-              onChange={(event) => onChange({ spellcheckLanguages: [event.target.value] })}
-            >
-              {SPELLCHECK_CHOICES.map((code) => (
-                <option key={code} value={code}>
-                  {code}
-                </option>
-              ))}
-            </select>
-          </label>
+            <SpellcheckPanel
+              enabled={settings.spellcheckEnabled}
+              selected={settings.spellcheckLanguages}
+              uiLanguage={settings.language}
+              onChange={(spellcheckLanguages) => onChange({ spellcheckLanguages })}
+              t={t}
+            />
+          </div>
 
           <label className="modal-field">
             <span>{t("settings.exportTheme")}</span>

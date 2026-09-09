@@ -56,7 +56,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   autosaveEnabled: true,
   autosaveIntervalSeconds: 30,
   spellcheckEnabled: true,
-  spellcheckLanguages: ["pl-PL"],
+  spellcheckLanguages: ["pl", "en-US"],
   exportTheme: "app",
   pageSize: "A4",
   landscape: false,

@@ -28,6 +28,7 @@ import {
 } from "../shared/documentTheme.js";
 import { createTranslator, type Language, type TranslationKey } from "../shared/i18n.js";
 import { resolveExportTheme, type AppSettings } from "../shared/settings.js";
+import { normalizeSpellcheckLanguages } from "../shared/spellcheck.js";
 import { searchMarkdownInFolder, type SearchOptions } from "./searchMarkdown.js";
 import { applyWindowIcon, getAppIcon } from "./appIcon.js";
 import {
@@ -223,12 +224,26 @@ function resolvePreloadPath(): string {
 
 function applySpellChecker(win: BrowserWindow, settings: AppSettings) {
   try {
-    const languages = settings.spellcheckEnabled ? settings.spellcheckLanguages : [];
-    win.webContents.session.setSpellCheckerEnabled(settings.spellcheckEnabled);
-    if (languages.length) win.webContents.session.setSpellCheckerLanguages(languages);
+    const session = win.webContents.session;
+    session.setSpellCheckerEnabled(settings.spellcheckEnabled);
+    if (!settings.spellcheckEnabled) return;
+
+    // Chromium ignores codes outside its own list without complaining, so a
+    // stale setting would look applied while silently checking nothing.
+    const languages = normalizeSpellcheckLanguages(
+      settings.spellcheckLanguages,
+      session.availableSpellCheckerLanguages
+    );
+    if (languages.length) session.setSpellCheckerLanguages(languages);
   } catch {
-    // Unsupported language codes must not take the window down.
+    // A bad language code must not take the window down.
   }
+}
+
+/** The session every window shares; spell-check state lives on it. */
+function spellSession() {
+  const state = focusedState();
+  return (state?.window ?? BrowserWindow.getAllWindows()[0])?.webContents.session ?? null;
 }
 
 function createWindow(startupFilePath: string | null = null) {
@@ -1073,6 +1088,37 @@ ipcMain.handle(
     return searchMarkdownInFolder(payload.folderPath, payload.query, payload.options);
   }
 );
+
+ipcMain.handle(
+  "spell:availableLanguages",
+  () => spellSession()?.availableSpellCheckerLanguages ?? []
+);
+
+ipcMain.handle("spell:addWord", (_event, word: string) => {
+  if (typeof word !== "string" || !word.trim()) return false;
+  try {
+    return spellSession()?.addWordToSpellCheckerDictionary(word.trim()) ?? false;
+  } catch {
+    return false;
+  }
+});
+
+ipcMain.handle("spell:removeWord", (_event, word: string) => {
+  if (typeof word !== "string" || !word.trim()) return false;
+  try {
+    return spellSession()?.removeWordFromSpellCheckerDictionary(word.trim()) ?? false;
+  } catch {
+    return false;
+  }
+});
+
+ipcMain.handle("spell:listWords", async () => {
+  try {
+    return (await spellSession()?.listWordsInSpellCheckerDictionary()) ?? [];
+  } catch {
+    return [];
+  }
+});
 
 ipcMain.handle("update:check", async () => {
   if (isWindowsStoreBuild()) return { kind: "unsupported" as const };

@@ -40,7 +40,9 @@ Wersja instalowana sprawdza aktualizacje przy starcie (można wyłączyć w Usta
 - Wklejanie HTML jako Markdown (nagłówki, listy, tabele, linki)
 - Wklejanie obrazu ze schowka — zapis do `assets/` obok dokumentu
 - Znajdź/zamień z obsługą wyrażeń regularnych i wielkości liter
-- Sprawdzanie pisowni z podpowiedziami w menu kontekstowym (domyślnie `pl-PL`)
+- Sprawdzanie pisowni jak w LibreOffice: czerwone podkreślenia, podpowiedzi w menu
+  kontekstowym i własny słownik. Domyślnie polski i angielski jednocześnie, w
+  Ustawieniach do wyboru 57 języków (słownik pobiera się przy pierwszym użyciu)
 - Zakładki, sesja po restarcie, autozapis (konfigurowalny)
 - Lista 10 ostatnio otwartych plików w menu **Plik → Ostatnio otwarte**
   (przeżywa restart, martwe wpisy znikają same)

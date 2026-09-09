@@ -156,6 +156,11 @@ function App() {
     () => [
       markdown(),
       EditorView.lineWrapping,
+      // CodeMirror turns spellcheck off on its content element by default, so
+      // Chromium never underlines anything until we turn it back on.
+      EditorView.contentAttributes.of({
+        spellcheck: settings.spellcheckEnabled ? "true" : "false"
+      }),
       EditorView.theme({
         "&": { height: "100%" },
         ".cm-scroller": {
@@ -167,7 +172,7 @@ function App() {
       }),
       ...editor.clipboardExtension
     ],
-    [editor.clipboardExtension, settings.editorFontSize]
+    [editor.clipboardExtension, settings.editorFontSize, settings.spellcheckEnabled]
   );
 
   useEffect(() => {
@@ -777,6 +782,13 @@ function App() {
             setContextMenu(null);
             setSpelling(null);
             editor.replaceWordAtCursor(suggestion);
+          }}
+          onAddToDictionary={(word) => {
+            setContextMenu(null);
+            setSpelling(null);
+            void window.markdownStudio.addWordToDictionary(word).then((added) => {
+              if (added) setStatus(t("status.wordAdded", { word }));
+            });
           }}
           onSave={() => {
             setContextMenu(null);

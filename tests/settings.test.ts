@@ -36,7 +36,19 @@ describe("normalizeSettings", () => {
     expect(normalizeSettings({ spellcheckLanguages: [1, "en-US"] }).spellcheckLanguages).toEqual([
       "en-US"
     ]);
-    expect(normalizeSettings({ spellcheckLanguages: [] }).spellcheckLanguages).toEqual(["pl-PL"]);
+  });
+
+  it("falls back to Polish and English when no language is stored", () => {
+    // "pl-PL" is not a code Chromium offers; the default has to be one it does.
+    expect(normalizeSettings({ spellcheckLanguages: [] }).spellcheckLanguages).toEqual([
+      "pl",
+      "en-US"
+    ]);
+  });
+
+  it("keeps several spellcheck languages at once", () => {
+    const settings = normalizeSettings({ spellcheckLanguages: ["pl", "en-US", "de"] });
+    expect(settings.spellcheckLanguages).toEqual(["pl", "en-US", "de"]);
   });
 });
 
