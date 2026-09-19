@@ -2,6 +2,13 @@ import type { AppSettings } from "../shared/settings";
 
 export type AppTheme = "light" | "dark";
 
+/** Outcome of installing a Hunspell dictionary for one spell-check language. */
+export type DictionaryInstallResult =
+  | { status: "installed"; file: string }
+  | { status: "already"; file: string }
+  | { status: "unavailable" }
+  | { status: "failed"; error: string };
+
 export interface MarkdownFile {
   filePath: string;
   fileName: string;
@@ -156,6 +163,9 @@ export interface ElectronApi {
   addWordToDictionary: (word: string) => Promise<boolean>;
   removeWordFromDictionary: (word: string) => Promise<boolean>;
   listDictionaryWords: () => Promise<string[]>;
+  installedDictionaries: (codes: string[]) => Promise<string[]>;
+  installDictionary: (code: string) => Promise<DictionaryInstallResult>;
+  openLanguageSettings: () => Promise<void>;
   checkForUpdates: () => Promise<UpdateStatus>;
   onUpdateStatus: (callback: (status: UpdateStatus) => void) => () => void;
 }

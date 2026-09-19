@@ -34,6 +34,7 @@ import { applyWindowIcon, getAppIcon } from "./appIcon.js";
 import {
   indexHtmlPath,
   openDefaultAppSettings,
+  openLanguageSettings,
   registerMarkdownHandlers
 } from "./fileAssociations.js";
 import { embedLocalImages } from "./imageEmbed.js";
@@ -49,6 +50,7 @@ import { forgetOwnWrite, noteOwnWrite, watchFile, type WatchHandle } from "./fil
 import { cleanupTempFiles, removeTempFile, writeTempHtml } from "./tempFiles.js";
 import { listFolder } from "./fileTree.js";
 import { buildRecentMenuEntries } from "./recentMenu.js";
+import { installDictionary, installedDictionaries } from "./dictionaryInstall.js";
 import {
   checkForUpdates,
   checkForUpdatesInBackground,
@@ -1119,6 +1121,23 @@ ipcMain.handle("spell:listWords", async () => {
     return [];
   }
 });
+
+ipcMain.handle("spell:installedDictionaries", async (_event, codes: unknown) => {
+  if (!Array.isArray(codes)) return [];
+  return installedDictionaries(codes.filter((code): code is string => typeof code === "string"));
+});
+
+ipcMain.handle("spell:installDictionary", async (_event, code: unknown) => {
+  if (typeof code !== "string" || !code)
+    return { status: "failed" as const, error: "Brak języka." };
+  // Deliberately no re-apply of the language list afterwards: measured, calling
+  // setSpellCheckerLanguages() again mid-session leaves Chromium checking
+  // English only, and no amount of waiting recovers it. The file is picked up
+  // cleanly when the spell checker starts, so the UI asks for a restart.
+  return installDictionary(code);
+});
+
+ipcMain.handle("spell:openLanguageSettings", () => openLanguageSettings());
 
 ipcMain.handle("update:check", async () => {
   if (isWindowsStoreBuild()) return { kind: "unsupported" as const };

@@ -42,7 +42,15 @@ Wersja instalowana sprawdza aktualizacje przy starcie (można wyłączyć w Usta
 - Znajdź/zamień z obsługą wyrażeń regularnych i wielkości liter
 - Sprawdzanie pisowni jak w LibreOffice: czerwone podkreślenia, podpowiedzi w menu
   kontekstowym i własny słownik. Domyślnie polski i angielski jednocześnie, w
-  Ustawieniach do wyboru 57 języków (słownik pobiera się przy pierwszym użyciu)
+  Ustawieniach do wyboru 57 języków, każdy z przyciskiem **Zainstaluj słownik**
+
+  Uwaga o Windows: Chromium oddaje sprawdzanie każdego języka, który obsługuje
+  system (w tym polskiego), mechanizmowi Windows i nie używa wtedy własnego
+  słownika — potwierdzone pomiarem, plik `pl-PL-3-0.bdic` jest w takim wypadku
+  ignorowany. Własny słownik obsługuje języki, których Windows nie zna (tam
+  Chromium normalnie pobiera go sam dopiero w tle, a przycisk robi to od razu).
+  Jeśli brakuje podpowiedzi po polsku, funkcji pisania dla polskiego brakuje
+  w samym Windows — panel Ustawień prowadzi wprost do tego ekranu.
 - Zakładki, sesja po restarcie, autozapis (konfigurowalny)
 - Lista 10 ostatnio otwartych plików w menu **Plik → Ostatnio otwarte**
   (przeżywa restart, martwe wpisy znikają same)

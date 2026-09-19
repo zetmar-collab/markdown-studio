@@ -88,6 +88,26 @@ export async function openDefaultAppSettings(): Promise<void> {
   }
 }
 
+/**
+ * Opens the Windows language settings.
+ *
+ * Chromium hands spell checking of any language Windows supports over to the
+ * system, and ignores its own dictionary for it. When those suggestions are
+ * missing, the fix is in Windows — the language's "Typing" feature — not in
+ * this app.
+ */
+export async function openLanguageSettings(): Promise<void> {
+  const urls = ["ms-settings:regionlanguage", "ms-settings:language"];
+  for (const url of urls) {
+    try {
+      await shell.openExternal(url);
+      return;
+    } catch {
+      /* try next */
+    }
+  }
+}
+
 export function indexHtmlPath(): string {
   const candidates = [
     join(app.getAppPath(), "dist", "index.html"),
