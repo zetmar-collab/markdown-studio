@@ -117,6 +117,17 @@ npm test             # Vitest
 
 CI uruchamia wszystkie cztery plus pełny build.
 
+Sprawdzanie pisowni da się zweryfikować tylko w uruchomionej aplikacji — testy
+jednostkowe nie widzą ani atrybutów DOM CodeMirror, ani zdarzeń Chromium:
+
+```bash
+npx vite                                    # w osobnym terminalu
+npx electron scripts/spellcheck-smoke.mjs   # wpisuje literówkę i czyta menu
+```
+
+Skrypt kończy się kodem 0 tylko wtedy, gdy menu kontekstowe faktycznie pokazało
+podpowiedzi dla błędnego słowa.
+
 ### Architektura
 
 | Katalog | Zawartość |

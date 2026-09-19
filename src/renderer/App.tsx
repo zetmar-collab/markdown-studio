@@ -609,7 +609,12 @@ function App() {
     <div
       className={shellClasses}
       onContextMenu={(event) => {
-        event.preventDefault();
+        // Deliberately no preventDefault(): Chromium only reports the
+        // misspelled word and its suggestions to the main process when the
+        // page lets the event through, and Electron shows no menu of its own,
+        // so there is nothing to suppress. Clear the previous word first — the
+        // fresh payload arrives from the main process a tick later.
+        setSpelling(null);
         const inPreview = previewRef.current?.contains(event.target as Node) ?? false;
         setContextTarget(inPreview ? "preview" : "editor");
         setContextMenu({
