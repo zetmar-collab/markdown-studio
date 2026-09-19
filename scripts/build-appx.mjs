@@ -37,6 +37,13 @@ const PUBLISHER_CN = "15A53D32-C868-48EE-B700-5DBB5449CA1B";
 const OUT_DIR = join("out", "pack");
 const STORE_DIR = join("out", "store");
 const SDK_ROOT = "C:\\Program Files (x86)\\Windows Kits\\10\\bin";
+/** electron-builder caches a real Windows Kits bundle; a usable fallback when the SDK is gone. */
+const CACHED_KITS_ROOT = join(
+  process.env.LOCALAPPDATA ?? "",
+  "electron-builder",
+  "Cache",
+  "win-codesign@1.1.0"
+);
 
 const args = process.argv.slice(2);
 const wantStore = args.includes("--store");
@@ -58,20 +65,40 @@ function run(command, commandArgs, options = {}) {
   }
 }
 
-/** Newest Windows SDK signtool.exe; the bundled one cannot sign an AppX. */
+/**
+ * Newest Windows Kits signtool.exe.
+ *
+ * Prefers a locally installed SDK. When there is none — a Windows update or a
+ * disk cleanup can take it away — it falls back to the Windows Kits bundle that
+ * electron-builder caches, which is a genuine SDK signtool. Not to be confused
+ * with the ancient one under Cache\winCodeSign, which cannot sign an AppX.
+ */
 function findSigntool() {
-  if (!existsSync(SDK_ROOT)) {
-    throw new Error(`Nie znaleziono Windows SDK w ${SDK_ROOT}. Zainstaluj Windows 10/11 SDK.`);
+  const roots = [];
+  if (existsSync(SDK_ROOT)) {
+    for (const version of readdirSync(SDK_ROOT)
+      .filter((name) => /^10\.\d+\.\d+\.\d+$/.test(name))
+      .sort()
+      .reverse()) {
+      roots.push(join(SDK_ROOT, version, "x64", "signtool.exe"));
+    }
   }
-  const versions = readdirSync(SDK_ROOT)
-    .filter((name) => /^10\.\d+\.\d+\.\d+$/.test(name))
-    .sort()
-    .reverse();
-  for (const version of versions) {
-    const candidate = join(SDK_ROOT, version, "x64", "signtool.exe");
+  if (existsSync(CACHED_KITS_ROOT)) {
+    for (const bundle of readdirSync(CACHED_KITS_ROOT)
+      .filter((name) => name.startsWith("windows-kits-bundle-"))
+      .sort()
+      .reverse()) {
+      roots.push(join(CACHED_KITS_ROOT, bundle, "x64", "signtool.exe"));
+    }
+  }
+  for (const candidate of roots) {
     if (existsSync(candidate)) return candidate;
   }
-  throw new Error(`Nie znaleziono signtool.exe w ${SDK_ROOT}\\*\\x64.`);
+  throw new Error(
+    `Nie znaleziono signtool.exe ani w ${SDK_ROOT}\\*\\x64, ani w ${CACHED_KITS_ROOT}.\n` +
+      `  Zainstaluj Windows 10/11 SDK albo uruchom raz "npm run dist:setup",\n` +
+      `  żeby electron-builder pobrał swój zestaw narzędzi podpisujących.`
+  );
 }
 
 /** Newest local certificate whose subject matches the Store publisher. */
