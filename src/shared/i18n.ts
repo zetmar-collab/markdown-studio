@@ -202,7 +202,17 @@ const pl = {
   "settings.spellcheckSelected": "wybrane: {count}",
   "settings.spellcheckNoMatch": "Brak języka pasującego do wyszukiwania",
   "settings.spellcheckDownloadHint":
-    "Słownik nowego języka pobiera się automatycznie przy pierwszym użyciu.",
+    "Języki, których Windows nie obsługuje, sprawdza własny słownik programu — pobierz go tutaj, żeby działał od razu i bez internetu.",
+  "settings.spellcheckWindowsHint":
+    "Języki, które Windows obsługuje (m.in. polski), sprawdza sam system i nie korzysta wtedy ze słownika programu. Jeśli brakuje podpowiedzi, dodaj funkcję pisania dla tego języka w ustawieniach Windows.",
+  "settings.openWindowsLanguages": "Ustawienia języków Windows",
+  "settings.dictionaryInstall": "Zainstaluj słownik",
+  "settings.dictionaryInstalling": "Pobieranie…",
+  "settings.dictionaryInstalled": "Słownik zainstalowany",
+  "settings.dictionaryInstalledFor":
+    "Zainstalowano słownik: {language}. Zadziała po ponownym uruchomieniu programu.",
+  "settings.dictionaryUnavailable": "Brak słownika do pobrania dla tego języka",
+  "settings.dictionaryFailed": "Nie udało się pobrać słownika: {error}",
   "settings.customDictionary": "Słownik użytkownika ({count})",
   "settings.customDictionaryEmpty": "Pusty — dodaj słowo z menu kontekstowego w edytorze",
   "settings.customDictionaryRemove": "Usuń ze słownika",
@@ -432,7 +442,17 @@ const en: Record<TranslationKey, string> = {
   "settings.spellcheckSelected": "selected: {count}",
   "settings.spellcheckNoMatch": "No language matches the search",
   "settings.spellcheckDownloadHint":
-    "The dictionary for a new language downloads automatically on first use.",
+    "Languages Windows does not support are checked by the app's own dictionary — download it here so it works right away and offline.",
+  "settings.spellcheckWindowsHint":
+    "Languages Windows does support (Polish among them) are checked by the system itself, which then ignores the app's dictionary. If suggestions are missing, add that language's typing feature in Windows settings.",
+  "settings.openWindowsLanguages": "Windows language settings",
+  "settings.dictionaryInstall": "Install dictionary",
+  "settings.dictionaryInstalling": "Downloading…",
+  "settings.dictionaryInstalled": "Dictionary installed",
+  "settings.dictionaryInstalledFor":
+    "Dictionary installed: {language}. It takes effect after you restart the app.",
+  "settings.dictionaryUnavailable": "No dictionary available for this language",
+  "settings.dictionaryFailed": "Could not download the dictionary: {error}",
   "settings.customDictionary": "Personal dictionary ({count})",
   "settings.customDictionaryEmpty": "Empty — add a word from the editor's context menu",
   "settings.customDictionaryRemove": "Remove from dictionary",

@@ -1347,9 +1347,86 @@ input:focus {
   background: var(--surface-hover, rgba(127, 127, 127, 0.12));
 }
 
-.spellcheck-item.active {
+.spellcheck-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-right: 8px;
+}
+
+.spellcheck-row:hover {
+  background: var(--surface-hover, rgba(127, 127, 127, 0.12));
+}
+
+.spellcheck-row.active {
   background: var(--surface);
+}
+
+.spellcheck-row.active .spellcheck-item {
   font-weight: 600;
+}
+
+/* The install button and the "installed" badge share a width so the rows of
+   the chosen languages stay aligned with each other. */
+.spellcheck-install,
+.spellcheck-installed {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 132px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.spellcheck-install {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.spellcheck-install:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.spellcheck-install:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.spellcheck-installed {
+  border: 1px solid transparent;
+  color: var(--muted);
+}
+
+.spellcheck-windows-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.spellcheck-windows-link:hover {
+  text-decoration: underline;
+}
+
+.spellcheck-message {
+  margin: 6px 0 0;
+  font-size: 11.5px;
+  color: var(--accent);
 }
 
 /* Reserve the tick column so labels stay aligned whether ticked or not. */

@@ -1,4 +1,4 @@
 {
-  "pl-pl": "Wersja 0.4.1\n\n• Menu kontekstowe pokazuje wreszcie podpowiedzi poprawnej pisowni. Wcześniej podkreślało błąd, ale nie proponowało żadnego słowa.",
-  "en-us": "Version 0.4.1\n\n• The context menu now offers spelling corrections. It previously underlined a mistake without suggesting anything to replace it with."
+  "pl-pl": "Wersja 0.4.1\n\n• Menu kontekstowe pokazuje wreszcie podpowiedzi poprawnej pisowni. Wcześniej podkreślało błąd, ale nie proponowało żadnego słowa.\n• Nowy przycisk „Zainstaluj słownik\" przy każdym wybranym języku w Ustawieniach — pobiera słownik od razu, zamiast czekać, aż zrobi to tło przy kolejnym uruchomieniu.\n• Ustawienia mówią teraz wprost, które języki sprawdza sam Windows, i prowadzą do ekranu, na którym można dodać brakującą funkcję pisania.",
+  "en-us": "Version 0.4.1\n\n• The context menu now offers spelling corrections. It previously underlined a mistake without suggesting anything to replace it with.\n• A new \"Install dictionary\" button next to every selected language in Settings downloads the dictionary right away instead of waiting for a background fetch on a later start.\n• Settings now says which languages Windows checks itself, and links straight to the screen where a missing typing feature can be added."
 }
