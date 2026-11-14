@@ -8,6 +8,8 @@
 import type { DocumentTheme } from "./documentTheme.js";
 import { isLanguage, type Language } from "./i18n.js";
 
+import { normalizeProfiles, type ExportProfile } from "./exportProfiles.js";
+
 export type PageSize = "A4" | "A3" | "A5" | "Letter" | "Legal" | "Tabloid";
 
 export const PAGE_SIZES: readonly PageSize[] = [
@@ -51,6 +53,8 @@ export interface AppSettings {
   historyEnabled: boolean;
   /** How many copies per document are kept. */
   historyLimit: number;
+  /** Saved page setups. */
+  exportProfiles: ExportProfile[];
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -72,7 +76,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   mathEnabled: true,
   autoUpdateEnabled: true,
   historyEnabled: true,
-  historyLimit: 30
+  historyLimit: 30,
+  exportProfiles: []
 };
 
 function clampNumber(value: unknown, min: number, max: number, fallback: number): number {
@@ -122,6 +127,7 @@ export function normalizeSettings(input: unknown): AppSettings {
     editorFontSize: clampNumber(raw.editorFontSize, 9, 32, DEFAULT_SETTINGS.editorFontSize),
     previewFontSize: clampNumber(raw.previewFontSize, 10, 36, DEFAULT_SETTINGS.previewFontSize),
     autosaveEnabled: asBoolean(raw.autosaveEnabled, DEFAULT_SETTINGS.autosaveEnabled),
+    exportProfiles: normalizeProfiles(raw.exportProfiles, DEFAULT_SETTINGS),
     historyEnabled: asBoolean(raw.historyEnabled, DEFAULT_SETTINGS.historyEnabled),
     historyLimit: clampNumber(raw.historyLimit, 5, 200, DEFAULT_SETTINGS.historyLimit),
     autosaveIntervalSeconds: clampNumber(
