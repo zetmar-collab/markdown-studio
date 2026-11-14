@@ -50,6 +50,7 @@ import { forgetOwnWrite, noteOwnWrite, watchFile, type WatchHandle } from "./fil
 import { cleanupTempFiles, removeTempFile, writeTempHtml } from "./tempFiles.js";
 import { listFolder } from "./fileTree.js";
 import { buildRecentMenuEntries } from "./recentMenu.js";
+import { guardWindowNavigation } from "./externalLinks.js";
 import { installDictionary, installedDictionaries } from "./dictionaryInstall.js";
 import {
   checkForUpdates,
@@ -248,6 +249,24 @@ function spellSession() {
   return (state?.window ?? BrowserWindow.getAllWindows()[0])?.webContents.session ?? null;
 }
 
+/**
+ * Is this address the app's own interface?
+ *
+ * In development that is the Vite dev server, in a build the bundled
+ * index.html. Everything else — including a link in a user's document — is
+ * foreign and must never load in this window.
+ */
+function isInterfaceUrl(url: string): boolean {
+  if (isDev) return url.startsWith("http://localhost:5173");
+  try {
+    const target = new URL(url);
+    if (target.protocol !== "file:") return false;
+    return fileURLToPath(target) === indexHtmlPath();
+  } catch {
+    return false;
+  }
+}
+
 function createWindow(startupFilePath: string | null = null) {
   const icon = getAppIcon();
   const settings = getSettings();
@@ -278,6 +297,7 @@ function createWindow(startupFilePath: string | null = null) {
   windows.set(win.id, state);
 
   applySpellChecker(win, settings);
+  guardWindowNavigation(win, isInterfaceUrl);
 
   win.on("close", (event) => {
     if (!state.closeConfirmed) {
