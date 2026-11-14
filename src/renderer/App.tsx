@@ -40,6 +40,7 @@ import { ContextMenu } from "./components/ContextMenu";
 import { ImageDialog } from "./components/ImageDialog";
 import { TableDialog } from "./components/TableDialog";
 import { HistoryDialog } from "./components/HistoryDialog";
+import { CompareDialog } from "./components/CompareDialog";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { WorkspaceSearch } from "./components/WorkspaceSearch";
 import { Outline } from "./components/Outline";
@@ -112,6 +113,7 @@ function App() {
   const [showImageDialog, setShowImageDialog] = useState(false);
   const [showTableDialog, setShowTableDialog] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showCompare, setShowCompare] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [contextTarget, setContextTarget] = useState<ContextTarget>("editor");
   const [workspaceSearchOpen, setWorkspaceSearchOpen] = useState(false);
@@ -304,6 +306,9 @@ function App() {
         break;
       case "history":
         setShowHistory(true);
+        break;
+      case "compare":
+        setShowCompare(true);
         break;
       case "printPreview":
         void openPrintPreview();
@@ -766,6 +771,15 @@ function App() {
             );
           }}
           onClose={() => setShowHistory(false)}
+          t={t}
+        />
+      )}
+
+      {showCompare && (
+        <CompareDialog
+          tabs={fm.tabs}
+          activeId={fm.activeId}
+          onClose={() => setShowCompare(false)}
           t={t}
         />
       )}
