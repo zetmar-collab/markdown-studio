@@ -52,6 +52,10 @@ contextBridge.exposeInMainWorld("markdownStudio", {
   /* folders */
   pickFolder: () => ipcRenderer.invoke("folder:pick"),
   listFolder: (folderPath: string) => ipcRenderer.invoke("folder:list", folderPath),
+  /* historia wersji */
+  listVersions: (filePath: string) => ipcRenderer.invoke("history:list", filePath),
+  readVersion: (filePath: string, id: number) => ipcRenderer.invoke("history:read", filePath, id),
+  clearHistory: (filePath: string) => ipcRenderer.invoke("history:clear", filePath),
 
   /* settings + session */
   getSettings: () => ipcRenderer.invoke("settings:get"),

@@ -42,6 +42,7 @@ import { buildRecentMenuEntries } from "./recentMenu.js";
 import { guardWindowNavigation } from "./externalLinks.js";
 import { allowAssetFolder, isAllowedAssetPath } from "./assetAccess.js";
 import { registerExportHandlers } from "./exportDocuments.js";
+import { clearHistory, listVersions, readVersion, recordVersion } from "./documentHistory.js";
 import { installDictionary, installedDictionaries } from "./dictionaryInstall.js";
 import {
   checkForUpdates,
@@ -381,6 +382,12 @@ function menuTemplate(): MenuItemConstructorOptions[] {
         },
         { type: "separator" },
         {
+          label: t("history.menu"),
+          accelerator: "CmdOrCtrl+H",
+          click: () => sendMenuAction("history")
+        },
+        { type: "separator" },
+        {
           label: t("menu.workspaceSearch"),
           accelerator: "CmdOrCtrl+Shift+F",
           click: () => sendMenuAction("workspaceSearch")
@@ -623,6 +630,10 @@ async function saveToPath(filePath: string, content: string) {
   // Tell the watcher this mtime is ours so it does not prompt a reload.
   await noteOwnWrite(filePath);
   rememberRecentDocument(filePath);
+  const settings = getSettings();
+  if (settings.historyEnabled) {
+    await recordVersion(filePath, content, settings.historyLimit);
+  }
   return { filePath, fileName: basename(filePath), content };
 }
 
@@ -773,6 +784,18 @@ ipcMain.handle("app:showError", (event, title: string, detail: string) => {
   };
   if (win) void dialog.showMessageBox(win, options);
   else void dialog.showMessageBox(options);
+});
+
+ipcMain.handle("history:list", async (_event, filePath: unknown) =>
+  typeof filePath === "string" ? listVersions(filePath) : []
+);
+
+ipcMain.handle("history:read", async (_event, filePath: unknown, id: unknown) =>
+  typeof filePath === "string" && typeof id === "number" ? readVersion(filePath, id) : null
+);
+
+ipcMain.handle("history:clear", async (_event, filePath: unknown) => {
+  if (typeof filePath === "string") await clearHistory(filePath);
 });
 
 ipcMain.handle("settings:get", async () => loadSettings());

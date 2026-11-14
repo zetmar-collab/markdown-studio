@@ -47,6 +47,10 @@ export interface AppSettings {
   mermaidEnabled: boolean;
   mathEnabled: boolean;
   autoUpdateEnabled: boolean;
+  /** Keep a copy of the document on every save. */
+  historyEnabled: boolean;
+  /** How many copies per document are kept. */
+  historyLimit: number;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -66,7 +70,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   footerText: "",
   mermaidEnabled: true,
   mathEnabled: true,
-  autoUpdateEnabled: true
+  autoUpdateEnabled: true,
+  historyEnabled: true,
+  historyLimit: 30
 };
 
 function clampNumber(value: unknown, min: number, max: number, fallback: number): number {
@@ -116,6 +122,8 @@ export function normalizeSettings(input: unknown): AppSettings {
     editorFontSize: clampNumber(raw.editorFontSize, 9, 32, DEFAULT_SETTINGS.editorFontSize),
     previewFontSize: clampNumber(raw.previewFontSize, 10, 36, DEFAULT_SETTINGS.previewFontSize),
     autosaveEnabled: asBoolean(raw.autosaveEnabled, DEFAULT_SETTINGS.autosaveEnabled),
+    historyEnabled: asBoolean(raw.historyEnabled, DEFAULT_SETTINGS.historyEnabled),
+    historyLimit: clampNumber(raw.historyLimit, 5, 200, DEFAULT_SETTINGS.historyLimit),
     autosaveIntervalSeconds: clampNumber(
       raw.autosaveIntervalSeconds,
       5,

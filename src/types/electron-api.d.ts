@@ -2,6 +2,13 @@ import type { AppSettings } from "../shared/settings";
 
 export type AppTheme = "light" | "dark";
 
+/** One saved copy of a document kept by the local version history. */
+export interface HistoryEntry {
+  id: number;
+  savedAt: number;
+  bytes: number;
+}
+
 /**
  * Outcome of a save.
  *
@@ -132,6 +139,9 @@ export interface ElectronApi {
   /* folders */
   pickFolder: () => Promise<string | null>;
   listFolder: (folderPath: string) => Promise<FileTreeEntry[]>;
+  listVersions: (filePath: string) => Promise<HistoryEntry[]>;
+  readVersion: (filePath: string, id: number) => Promise<string | null>;
+  clearHistory: (filePath: string) => Promise<void>;
 
   /* settings + session */
   getSettings: () => Promise<AppSettings>;
