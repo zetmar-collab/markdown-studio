@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld("markdownStudio", {
   openFilePath: (filePath: string) => ipcRenderer.invoke("file:openPath", filePath),
   saveFile: (payload: unknown) => ipcRenderer.invoke("file:save", payload),
   saveFileAs: (payload: unknown) => ipcRenderer.invoke("file:saveAs", payload),
+  showError: (title: string, detail: string) => ipcRenderer.invoke("app:showError", title, detail),
   setWatchedFile: (filePath: string | null) => ipcRenderer.invoke("file:setWatched", filePath),
   onExternalFileChange: (callback: (filePath: string) => void) =>
     subscribe<[string]>("file:externalChange", callback),
