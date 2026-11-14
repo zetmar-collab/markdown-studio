@@ -3,6 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      Obrona w głąb. Markdown renderuje się z html: false, a okno nie wychodzi
+      poza aplikację, więc nie ma dziś drogi na wstrzyknięcie skryptu. CSP
+      pilnuje, żeby nie pojawiła się jutro: żadnych zdalnych skryptów, stylów,
+      ramek ani połączeń.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; img-src 'self' md-asset: data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' ws: http://localhost:5173; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
     <link rel="icon" href="/favicon.svg" />
     <title>Studio Markdown</title>
   </head>
