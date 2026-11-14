@@ -52,6 +52,7 @@ import { cleanupTempFiles, removeTempFile, writeTempHtml } from "./tempFiles.js"
 import { listFolder } from "./fileTree.js";
 import { buildRecentMenuEntries } from "./recentMenu.js";
 import { guardWindowNavigation } from "./externalLinks.js";
+import { allowAssetFolder, isAllowedAssetPath } from "./assetAccess.js";
 import { installDictionary, installedDictionaries } from "./dictionaryInstall.js";
 import {
   checkForUpdates,
@@ -196,6 +197,9 @@ function registerAssetProtocol() {
   protocol.handle(ASSET_SCHEME, async (request) => {
     const filePath = fromAssetUrl(request.url);
     if (!filePath) return new Response("Not found", { status: 404 });
+    // An <img src> must not become a way to read arbitrary files: only images,
+    // and only from a folder the user opened a document from.
+    if (!isAllowedAssetPath(filePath)) return new Response("Forbidden", { status: 403 });
     try {
       return await net.fetch(pathToFileURL(filePath).toString());
     } catch {
@@ -637,6 +641,8 @@ async function pickSavePath(
 
 /** Remember a document in the Windows jump list / recent documents. */
 function rememberRecentDocument(filePath: string) {
+  // Opening a document is what grants its folder to the asset scheme.
+  allowAssetFolder(dirname(filePath));
   try {
     app.addRecentDocument(filePath);
   } catch {
@@ -693,7 +699,9 @@ ipcMain.handle("file:getStartup", async (event) => {
   if (!state?.startupFilePath) return null;
   const filePath = state.startupFilePath;
   state.startupFilePath = null;
-  return readMarkdownFileSafe(filePath);
+  const file = await readMarkdownFileSafe(filePath);
+  if (file) rememberRecentDocument(file.filePath);
+  return file;
 });
 
 async function saveToPath(filePath: string, content: string) {
@@ -963,7 +971,11 @@ ipcMain.handle("image:pickFile", async (event) => {
   const result = win
     ? await dialog.showOpenDialog(win, options)
     : await dialog.showOpenDialog(options);
-  return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
+  if (result.canceled || result.filePaths.length === 0) return null;
+  // The user picked this image themselves, so the preview may show it even
+  // when it sits outside the document's own folder.
+  allowAssetFolder(dirname(result.filePaths[0]));
+  return result.filePaths[0];
 });
 
 /* ------------------------------------------------------------------ *

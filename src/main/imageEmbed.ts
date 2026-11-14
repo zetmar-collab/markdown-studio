@@ -1,18 +1,7 @@
 import { readFile, stat } from "node:fs/promises";
 import { dirname, extname, resolve } from "node:path";
 import { fromAssetUrl } from "../shared/assetProtocol.js";
-
-const IMAGE_MIME: Record<string, string> = {
-  png: "image/png",
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-  gif: "image/gif",
-  svg: "image/svg+xml",
-  webp: "image/webp",
-  bmp: "image/bmp",
-  ico: "image/x-icon",
-  avif: "image/avif"
-};
+import { IMAGE_MIME } from "../shared/imageTypes.js";
 
 interface CacheEntry {
   mtimeMs: number;

@@ -71,6 +71,9 @@ export function watchFile(filePath: string, onChange: () => void): WatchHandle |
   return {
     close() {
       closed = true;
+      // Nothing is watching this path any more, so its remembered mtime is
+      // just a map entry that would never be removed.
+      ownWrites.delete(filePath);
       if (timer) clearTimeout(timer);
       try {
         watcher.close();
