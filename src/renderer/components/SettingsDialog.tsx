@@ -3,6 +3,7 @@ import type { Translator } from "../../shared/i18n";
 import { LANGUAGES } from "../../shared/i18n";
 import { PAGE_SIZES, type AppSettings } from "../../shared/settings";
 import { SpellcheckPanel } from "./SpellcheckPanel";
+import { ExportProfilesRow } from "./ExportProfilesRow";
 
 interface SettingsDialogProps {
   settings: AppSettings;
@@ -128,6 +129,8 @@ export function SettingsDialog({
               t={t}
             />
           </div>
+
+          <ExportProfilesRow settings={settings} onChange={onChange} t={t} />
 
           <label className="modal-field">
             <span>{t("settings.exportTheme")}</span>

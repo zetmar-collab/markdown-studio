@@ -1658,3 +1658,105 @@ input:focus {
 .compare-diff {
   max-height: 52vh;
 }
+
+/* ---------------- profile eksportu ---------------- */
+
+.export-profiles .side-empty {
+  margin: 0;
+  font-size: 11.5px;
+}
+
+.profile-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 150px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg);
+}
+
+.profile-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-right: 6px;
+}
+
+.profile-row:hover {
+  background: var(--surface-hover, rgba(127, 127, 127, 0.12));
+}
+
+.profile-row.active {
+  background: var(--surface);
+}
+
+.profile-apply {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 5px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.profile-tick {
+  flex: 0 0 auto;
+  display: inline-flex;
+  width: 14px;
+  color: var(--accent);
+}
+
+.profile-name {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-detail {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.profile-delete {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  padding: 3px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.profile-delete:hover {
+  color: #f85149;
+}
+
+.profile-save {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.profile-save input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.profile-save button {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
