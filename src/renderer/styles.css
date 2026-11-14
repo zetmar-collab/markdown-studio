@@ -1503,3 +1503,136 @@ input:focus {
 .spellcheck-word button:hover {
   color: #e5534b;
 }
+
+/* ---------------- historia wersji i porównanie ---------------- */
+
+.modal-wide {
+  width: min(960px, 94vw);
+  max-width: none;
+}
+
+.history-body {
+  display: grid;
+  grid-template-columns: 230px 1fr;
+  gap: 12px;
+  min-height: 320px;
+  max-height: 52vh;
+}
+
+.history-list {
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg);
+}
+
+.history-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.history-item:hover {
+  background: var(--surface-hover, rgba(127, 127, 127, 0.12));
+}
+
+.history-item.active {
+  background: var(--surface);
+  font-weight: 600;
+}
+
+.history-size {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.history-diff {
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg);
+}
+
+.diff-identical {
+  margin: 0;
+  padding: 18px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.diff-summary {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin: 0;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.diff-count.added {
+  color: #3fb950;
+}
+
+.diff-count.removed {
+  color: #f85149;
+}
+
+.diff-approximate {
+  color: var(--muted);
+}
+
+.diff-rows {
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.diff-row {
+  display: grid;
+  grid-template-columns: 44px 44px 16px 1fr;
+  gap: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.diff-row.added {
+  background: rgba(63, 185, 80, 0.14);
+}
+
+.diff-row.removed {
+  background: rgba(248, 81, 73, 0.14);
+}
+
+.diff-line-number {
+  padding-right: 8px;
+  color: var(--muted);
+  text-align: right;
+  user-select: none;
+}
+
+.diff-sign {
+  text-align: center;
+  user-select: none;
+}
+
+.diff-text {
+  padding-right: 10px;
+}
+
+.diff-gap {
+  padding: 2px 0 2px 104px;
+  color: var(--muted);
+  user-select: none;
+}

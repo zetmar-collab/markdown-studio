@@ -39,6 +39,7 @@ import { StatusBar } from "./components/StatusBar";
 import { ContextMenu } from "./components/ContextMenu";
 import { ImageDialog } from "./components/ImageDialog";
 import { TableDialog } from "./components/TableDialog";
+import { HistoryDialog } from "./components/HistoryDialog";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { WorkspaceSearch } from "./components/WorkspaceSearch";
 import { Outline } from "./components/Outline";
@@ -110,6 +111,7 @@ function App() {
   const [dragOver, setDragOver] = useState(false);
   const [showImageDialog, setShowImageDialog] = useState(false);
   const [showTableDialog, setShowTableDialog] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [contextTarget, setContextTarget] = useState<ContextTarget>("editor");
   const [workspaceSearchOpen, setWorkspaceSearchOpen] = useState(false);
@@ -299,6 +301,9 @@ function App() {
         break;
       case "exportDocx":
         void exportDocx();
+        break;
+      case "history":
+        setShowHistory(true);
         break;
       case "printPreview":
         void openPrintPreview();
@@ -742,6 +747,28 @@ function App() {
       </main>
 
       <StatusBar status={status} stats={stats} t={t} />
+
+      {showHistory && (
+        <HistoryDialog
+          filePath={filePath}
+          currentContent={content}
+          language={settings.language}
+          onRestore={(restored) => {
+            // The restored text becomes an unsaved change, so the user can
+            // still look at it and walk away without touching the file.
+            setContent(restored);
+            setDirty(true);
+            setShowHistory(false);
+            setStatus(
+              t("history.restored", {
+                moment: new Date().toLocaleString(settings.language === "pl" ? "pl-PL" : "en-US")
+              })
+            );
+          }}
+          onClose={() => setShowHistory(false)}
+          t={t}
+        />
+      )}
 
       {showImageDialog && (
         <ImageDialog
