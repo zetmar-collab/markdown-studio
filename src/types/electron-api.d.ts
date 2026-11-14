@@ -2,12 +2,24 @@ import type { AppSettings } from "../shared/settings";
 
 export type AppTheme = "light" | "dark";
 
+/**
+ * Outcome of a save.
+ *
+ * "cancelled" and "failed" used to be the same `null`, so a write that failed
+ * on a read-only file or a disconnected drive was indistinguishable from the
+ * user closing the dialog — and the app said nothing at all.
+ */
+export type SaveResult =
+  | { status: "saved"; file: MarkdownFile }
+  | { status: "cancelled" }
+  | { status: "failed"; code: string | null; error: string; filePath: string };
+
 /** Outcome of installing a Hunspell dictionary for one spell-check language. */
 export type DictionaryInstallResult =
   | { status: "installed"; file: string }
   | { status: "already"; file: string }
   | { status: "unavailable" }
-  | { status: "failed"; error: string };
+  | { status: "failed"; code: string | null; error: string; filePath: string };
 
 export interface MarkdownFile {
   filePath: string;
@@ -109,8 +121,9 @@ export interface ElectronApi {
   onStartupFileChanged: (callback: () => void) => () => void;
   openFile: () => Promise<MarkdownFile | null>;
   openFilePath: (filePath: string) => Promise<MarkdownFile | null>;
-  saveFile: (payload: SavePayload) => Promise<MarkdownFile | null>;
-  saveFileAs: (payload: SavePayload) => Promise<MarkdownFile | null>;
+  saveFile: (payload: SavePayload) => Promise<SaveResult>;
+  saveFileAs: (payload: SavePayload) => Promise<SaveResult>;
+  showError: (title: string, detail: string) => Promise<void>;
   setWatchedFile: (filePath: string | null) => Promise<void>;
   onExternalFileChange: (callback: (filePath: string) => void) => () => void;
   onOpenRecentPath: (callback: (filePath: string) => void) => () => void;

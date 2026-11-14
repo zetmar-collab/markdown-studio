@@ -29,6 +29,7 @@ import {
 import { createTranslator, type Language, type TranslationKey } from "../shared/i18n.js";
 import { resolveExportTheme, type AppSettings } from "../shared/settings.js";
 import { normalizeSpellcheckLanguages } from "../shared/spellcheck.js";
+import { fileErrorCode, fileErrorMessage } from "../shared/fileErrors.js";
 import { searchMarkdownInFolder, type SearchOptions } from "./searchMarkdown.js";
 import { applyWindowIcon, getAppIcon } from "./appIcon.js";
 import {
@@ -67,6 +68,11 @@ interface SavePayload {
   filePath?: string | null;
   content: string;
 }
+
+type SaveResult =
+  | { status: "saved"; file: { filePath: string; fileName: string; content: string } }
+  | { status: "cancelled" }
+  | { status: "failed"; code: string | null; error: string; filePath: string };
 
 interface ExportPayload {
   filePath?: string | null;
@@ -699,16 +705,29 @@ async function saveToPath(filePath: string, content: string) {
   return { filePath, fileName: basename(filePath), content };
 }
 
+/**
+ * Why the save did not happen matters to the user: a closed dialog is their own
+ * doing, a failed write is not and has to be said out loud.
+ */
+async function saveResult(filePath: string | null, content: string): Promise<SaveResult> {
+  if (!filePath) return { status: "cancelled" };
+  try {
+    return { status: "saved", file: await saveToPath(filePath, content) };
+  } catch (error) {
+    return {
+      status: "failed",
+      code: fileErrorCode(error),
+      error: fileErrorMessage(error),
+      filePath
+    };
+  }
+}
+
 ipcMain.handle("file:save", async (event, payload: SavePayload) => {
   const win = windowFromEvent(event);
   const filePath =
     payload.filePath ?? (await pickSavePath(win, t("app.untitled"), markdownFilters()));
-  if (!filePath) return null;
-  try {
-    return await saveToPath(filePath, payload.content);
-  } catch {
-    return null;
-  }
+  return saveResult(filePath, payload.content);
 });
 
 ipcMain.handle("file:saveAs", async (event, payload: SavePayload) => {
@@ -718,12 +737,7 @@ ipcMain.handle("file:saveAs", async (event, payload: SavePayload) => {
     payload.filePath ? basename(payload.filePath) : t("app.untitled"),
     markdownFilters()
   );
-  if (!filePath) return null;
-  try {
-    return await saveToPath(filePath, payload.content);
-  } catch {
-    return null;
-  }
+  return saveResult(filePath, payload.content);
 });
 
 ipcMain.handle("file:openPath", async (_event, filePath: string) => {
@@ -827,6 +841,18 @@ ipcMain.handle("dialog:confirm", async (event, message: string) => {
 /* ------------------------------------------------------------------ *
  * IPC: settings + session
  * ------------------------------------------------------------------ */
+
+ipcMain.handle("app:showError", (event, title: string, detail: string) => {
+  const win = windowFromEvent(event);
+  const options = {
+    type: "error" as const,
+    title: t("app.name"),
+    message: String(title).slice(0, 200),
+    detail: String(detail).slice(0, 2000)
+  };
+  if (win) void dialog.showMessageBox(win, options);
+  else void dialog.showMessageBox(options);
+});
 
 ipcMain.handle("settings:get", async () => loadSettings());
 

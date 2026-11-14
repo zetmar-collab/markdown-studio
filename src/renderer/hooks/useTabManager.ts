@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { MarkdownFile, SavedSession } from "../../types/electron-api";
-import type { Translator } from "../../shared/i18n";
+import type { MarkdownFile, SaveResult, SavedSession } from "../../types/electron-api";
+import type { TranslationKey, Translator } from "../../shared/i18n";
+import { describeSaveFailure, fileNameOf } from "../../shared/saveFailure";
+import { savedContentIsCurrent, tabsNeedingAutosave } from "../../shared/autosave";
 import type { AppSettings } from "../../shared/settings";
 import type { Tab } from "../renderer-types";
 import {
@@ -196,16 +198,26 @@ export function useTabManager(
     const intervalMs = Math.max(5, settings.autosaveIntervalSeconds) * 1000;
     const id = window.setInterval(() => {
       void (async () => {
-        const dirtyTabs = tabsRef.current.filter((tab) => tab.dirty && tab.filePath);
+        const dirtyTabs = tabsNeedingAutosave(tabsRef.current);
         for (const tab of dirtyTabs) {
-          const file = await window.markdownStudio.saveFile({
+          // What goes to disk is this snapshot, not whatever the tab holds by
+          // the time the write returns.
+          const written = tab.content;
+          const result = await window.markdownStudio.saveFile({
             filePath: tab.filePath!,
-            content: tab.content
+            content: written
           });
-          if (file) {
-            patchTab(tab.id, { dirty: false });
-            setStatus(t("status.autosave", { name: file.fileName }));
+          if (result.status === "failed") {
+            setStatus(t("status.autosaveFailed", { name: tab.fileName }));
+            continue;
           }
+          if (result.status !== "saved") continue;
+          // Typing during the write must not be marked as saved; the next pass
+          // picks it up instead of losing it.
+          const current = tabsRef.current.find((entry) => entry.id === tab.id);
+          if (!savedContentIsCurrent(written, current?.content)) continue;
+          patchTab(tab.id, { dirty: false });
+          setStatus(t("status.autosave", { name: result.file.fileName }));
         }
       })();
     }, intervalMs);
@@ -339,29 +351,52 @@ export function useTabManager(
     [forgetRecent, openFileInTab, setStatus, t]
   );
 
+  /**
+   * A failed write has to be loud. It used to return the same `null` as a
+   * cancelled dialog, so saving onto a read-only file or a disconnected drive
+   * said nothing at all and left the user believing the document was safe.
+   */
+  const reportSaveFailure = useCallback(
+    (result: Extract<SaveResult, { status: "failed" }>) => {
+      setStatus(t(describeSaveFailure(result.code), { name: fileNameOf(result.filePath) }));
+      void window.markdownStudio.showError(
+        t("status.saveFailedTitle"),
+        `${t(describeSaveFailure(result.code), { name: fileNameOf(result.filePath) })}
+
+${result.filePath}
+${result.error}`
+      );
+    },
+    [setStatus, t]
+  );
+
+  const applySaved = useCallback(
+    (file: MarkdownFile, messageKey: TranslationKey) => {
+      patchActive({ filePath: file.filePath, fileName: file.fileName, dirty: false });
+      addToRecent(file.filePath);
+      setStatus(t(messageKey, { name: file.fileName }));
+      void window.markdownStudio.setTitle(titleFor(file.fileName));
+    },
+    [addToRecent, patchActive, setStatus, t, titleFor]
+  );
+
   const save = useCallback(async () => {
-    const file = await window.markdownStudio.saveFile({
+    const result = await window.markdownStudio.saveFile({
       filePath: snap.current.filePath,
       content: snap.current.content
     });
-    if (!file) return;
-    patchActive({ filePath: file.filePath, fileName: file.fileName, dirty: false });
-    addToRecent(file.filePath);
-    setStatus(t("status.saved", { name: file.fileName }));
-    void window.markdownStudio.setTitle(titleFor(file.fileName));
-  }, [addToRecent, patchActive, setStatus, t, titleFor]);
+    if (result.status === "saved") applySaved(result.file, "status.saved");
+    else if (result.status === "failed") reportSaveFailure(result);
+  }, [applySaved, reportSaveFailure]);
 
   const saveAs = useCallback(async () => {
-    const file = await window.markdownStudio.saveFileAs({
+    const result = await window.markdownStudio.saveFileAs({
       filePath: snap.current.filePath,
       content: snap.current.content
     });
-    if (!file) return;
-    patchActive({ filePath: file.filePath, fileName: file.fileName, dirty: false });
-    addToRecent(file.filePath);
-    setStatus(t("status.savedAs", { name: file.fileName }));
-    void window.markdownStudio.setTitle(titleFor(file.fileName));
-  }, [addToRecent, patchActive, setStatus, t, titleFor]);
+    if (result.status === "saved") applySaved(result.file, "status.savedAs");
+    else if (result.status === "failed") reportSaveFailure(result);
+  }, [applySaved, reportSaveFailure]);
 
   const switchTab = useCallback(
     (id: string) => {
