@@ -1636,3 +1636,25 @@ input:focus {
   color: var(--muted);
   user-select: none;
 }
+
+.compare-pickers {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.compare-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.compare-picker select {
+  width: 100%;
+}
+
+.compare-diff {
+  max-height: 52vh;
+}

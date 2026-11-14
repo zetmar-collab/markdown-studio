@@ -386,6 +386,10 @@ function menuTemplate(): MenuItemConstructorOptions[] {
           accelerator: "CmdOrCtrl+H",
           click: () => sendMenuAction("history")
         },
+        {
+          label: t("compare.menu"),
+          click: () => sendMenuAction("compare")
+        },
         { type: "separator" },
         {
           label: t("menu.workspaceSearch"),
