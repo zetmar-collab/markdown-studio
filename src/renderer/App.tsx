@@ -41,6 +41,7 @@ import { ImageDialog } from "./components/ImageDialog";
 import { TableDialog } from "./components/TableDialog";
 import { HistoryDialog } from "./components/HistoryDialog";
 import { CompareDialog } from "./components/CompareDialog";
+import { NamePromptDialog } from "./components/NamePromptDialog";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { WorkspaceSearch } from "./components/WorkspaceSearch";
 import { Outline } from "./components/Outline";
@@ -114,6 +115,7 @@ function App() {
   const [showTableDialog, setShowTableDialog] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showCompare, setShowCompare] = useState(false);
+  const [showTemplateName, setShowTemplateName] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [contextTarget, setContextTarget] = useState<ContextTarget>("editor");
   const [workspaceSearchOpen, setWorkspaceSearchOpen] = useState(false);
@@ -279,6 +281,17 @@ function App() {
   }
 
   const handleMenuAction = (action: string) => {
+    if (action.startsWith("templateUser:")) {
+      const fileName = action.slice("templateUser:".length);
+      void window.markdownStudio.readTemplate(fileName).then((templateContent) => {
+        if (templateContent === null) {
+          setStatus(t("template.missing", { name: fileName }));
+          return;
+        }
+        fm.newDocumentFromContent(templateContent, fileName.replace(/\.md$/i, ""));
+      });
+      return;
+    }
     switch (action) {
       case "new":
         fm.newDocument();
@@ -309,6 +322,9 @@ function App() {
         break;
       case "compare":
         setShowCompare(true);
+        break;
+      case "templateSaveCurrent":
+        setShowTemplateName(true);
         break;
       case "printPreview":
         void openPrintPreview();
@@ -771,6 +787,25 @@ function App() {
             );
           }}
           onClose={() => setShowHistory(false)}
+          t={t}
+        />
+      )}
+
+      {showTemplateName && (
+        <NamePromptDialog
+          title={t("template.saveTitle")}
+          label={t("template.nameLabel")}
+          initialValue={fileName.replace(/\.md$/i, "")}
+          confirmLabel={t("menu.save")}
+          onConfirm={(name) => {
+            setShowTemplateName(false);
+            void window.markdownStudio.saveTemplate(name, content).then((saved) => {
+              setStatus(
+                saved ? t("template.saved", { name: saved.name }) : t("template.saveFailed")
+              );
+            });
+          }}
+          onClose={() => setShowTemplateName(false)}
           t={t}
         />
       )}

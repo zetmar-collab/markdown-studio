@@ -3,6 +3,12 @@ import type { AppSettings } from "../shared/settings";
 export type AppTheme = "light" | "dark";
 
 /** One saved copy of a document kept by the local version history. */
+/** A Markdown file the user keeps in the templates folder. */
+export interface UserTemplate {
+  fileName: string;
+  name: string;
+}
+
 export interface HistoryEntry {
   id: number;
   savedAt: number;
@@ -142,6 +148,11 @@ export interface ElectronApi {
   listVersions: (filePath: string) => Promise<HistoryEntry[]>;
   readVersion: (filePath: string, id: number) => Promise<string | null>;
   clearHistory: (filePath: string) => Promise<void>;
+  listTemplates: () => Promise<UserTemplate[]>;
+  readTemplate: (fileName: string) => Promise<string | null>;
+  saveTemplate: (name: string, content: string) => Promise<UserTemplate | null>;
+  deleteTemplate: (fileName: string) => Promise<boolean>;
+  openTemplatesFolder: () => Promise<void>;
 
   /* settings + session */
   getSettings: () => Promise<AppSettings>;
