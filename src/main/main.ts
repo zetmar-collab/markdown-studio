@@ -18,7 +18,7 @@ import { createTranslator, type Language, type TranslationKey } from "../shared/
 import { type AppSettings } from "../shared/settings.js";
 import { normalizeSpellcheckLanguages } from "../shared/spellcheck.js";
 import { fileErrorCode, fileErrorMessage } from "../shared/fileErrors.js";
-import { searchMarkdownInFolder, type SearchOptions } from "./searchMarkdown.js";
+import { listMarkdownFiles, searchMarkdownInFolder, type SearchOptions } from "./searchMarkdown.js";
 import { getAppIcon } from "./appIcon.js";
 import {
   indexHtmlPath,
@@ -434,6 +434,10 @@ function menuTemplate(): MenuItemConstructorOptions[] {
           label: t("presentation.exportPdf"),
           click: () => sendMenuAction("presentationPdf")
         },
+        {
+          label: t("batch.menu"),
+          click: () => sendMenuAction("batchExport")
+        },
         { type: "separator" },
         {
           label: t("menu.workspaceSearch"),
@@ -838,6 +842,10 @@ ipcMain.handle("app:showError", (event, title: string, detail: string) => {
   if (win) void dialog.showMessageBox(win, options);
   else void dialog.showMessageBox(options);
 });
+
+ipcMain.handle("folder:listMarkdown", async (_event, folderPath: unknown) =>
+  typeof folderPath === "string" ? listMarkdownFiles(folderPath) : []
+);
 
 ipcMain.handle("stats:read", async () =>
   normalizeStats(await readJsonFile("writing-stats.json", EMPTY_STATS))

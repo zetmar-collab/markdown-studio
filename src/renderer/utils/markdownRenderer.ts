@@ -12,7 +12,7 @@ import { stripFrontMatter } from "./frontMatter";
 import { createSlugger } from "../../shared/slugify";
 import { READING_WORDS_PER_MINUTE } from "../constants";
 
-function escapeHtml(value: string) {
+export function escapeHtml(value: string) {
   return value
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
