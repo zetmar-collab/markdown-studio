@@ -61,12 +61,17 @@ function isUnderAllowedRoot(realPath: string): boolean {
 /**
  * May this path be read on behalf of a document?
  *
- * The extension is judged on the name the document used, and the location on
- * the path with links resolved, so neither a `..` climb nor a symlink out of
- * the folder gets through.
+ * The order of the two checks is the point. Resolving links first would mean
+ * touching the filesystem for a path the document chose and we have not
+ * approved — and on Windows `\\serwer\udzial\x.png` is a path the operating
+ * system reaches over the network, handing an SMB host an authentication
+ * attempt. So the cheap lexical judgement comes first and an unapproved path
+ * never reaches `realpath`; only then are links resolved, to catch a symlink
+ * that leaves the folder, and the result is judged again.
  */
 export async function isAllowedAssetPath(path: string): Promise<boolean> {
   if (!path) return false;
   if (!isImagePath(path)) return false;
+  if (!isUnderAllowedRoot(normalize(path))) return false;
   return isUnderAllowedRoot(await realOrLexical(path));
 }
