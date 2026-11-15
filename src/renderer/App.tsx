@@ -43,6 +43,9 @@ import { HistoryDialog } from "./components/HistoryDialog";
 import { CompareDialog } from "./components/CompareDialog";
 import { NamePromptDialog } from "./components/NamePromptDialog";
 import { StatsDialog } from "./components/StatsDialog";
+import { PresentationView } from "./components/PresentationView";
+import { splitSlides } from "../shared/slides";
+import { renderMarkdownBody } from "./utils/markdownRenderer";
 import { useWritingStats } from "./hooks/useWritingStats";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { WorkspaceSearch } from "./components/WorkspaceSearch";
@@ -119,6 +122,7 @@ function App() {
   const [showCompare, setShowCompare] = useState(false);
   const [showTemplateName, setShowTemplateName] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  const [presenting, setPresenting] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [contextTarget, setContextTarget] = useState<ContextTarget>("editor");
   const [workspaceSearchOpen, setWorkspaceSearchOpen] = useState(false);
@@ -146,7 +150,7 @@ function App() {
    * exist as SVG after the client-side pass.
    */
   const getExportHtml = useCallback(() => previewRef.current?.innerHTML ?? html, [html]);
-  const { exportPdf, exportHtml, exportDocx, openPrintPreview } = useExport(
+  const { exportPdf, exportSlidesPdf, exportHtml, exportDocx, openPrintPreview } = useExport(
     filePath,
     getExportHtml,
     fileName,
@@ -335,6 +339,24 @@ function App() {
       case "stats":
         setShowStats(true);
         break;
+      case "presentation": {
+        const { slides } = splitSlides(content);
+        setPresenting(true);
+        setStatus(t("presentation.started", { count: slides.length }));
+        break;
+      }
+      case "presentationPdf": {
+        const { slides } = splitSlides(content);
+        void exportSlidesPdf(
+          slides.map((slide) =>
+            renderMarkdownBody(slide, {
+              math: settings.mathEnabled,
+              mermaid: settings.mermaidEnabled
+            })
+          )
+        );
+        break;
+      }
       case "printPreview":
         void openPrintPreview();
         break;
@@ -796,6 +818,18 @@ function App() {
             );
           }}
           onClose={() => setShowHistory(false)}
+          t={t}
+        />
+      )}
+
+      {presenting && (
+        <PresentationView
+          content={content}
+          filePath={filePath}
+          theme={theme}
+          math={settings.mathEnabled}
+          mermaid={settings.mermaidEnabled}
+          onClose={() => setPresenting(false)}
           t={t}
         />
       )}
