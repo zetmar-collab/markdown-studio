@@ -43,6 +43,14 @@ async function realOrLexical(path: string): Promise<string> {
 /** Let the preview and the exports reach images stored beside a document. */
 export async function allowAssetFolder(folderPath: string): Promise<void> {
   if (!folderPath) return;
+  // Both spellings are kept. The lexical form is what a document's own paths
+  // look like and is what the cheap first check compares against; the real
+  // form is what the second check sees once links are followed. A folder
+  // reached through a junction, a `subst` drive or a Windows 8.3 short name
+  // (`RUNNER~1`) has two different spellings, and registering only one of them
+  // rejected the document's own images at the first check — which is how CI
+  // caught it.
+  roots.add(normalize(folderPath));
   roots.add(await realOrLexical(folderPath));
 }
 

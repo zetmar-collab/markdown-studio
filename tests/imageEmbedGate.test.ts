@@ -91,6 +91,54 @@ describe("embedLocalImages — ograniczenie dostępu", () => {
     expect(await embedLocalImages(html, docPath)).not.toContain("base64");
   });
 
+  it("still serves an image when the folder is registered under a different spelling", async () => {
+    // The CI runner reports its temp folder as C:\Users\RUNNER~1\...; once
+    // links are followed that becomes runneradmin. The document's own paths use
+    // one form and the resolved path the other, so both have to be accepted or
+    // a legitimate image is refused at the first, lexical, check.
+    const { realpath } = await import("node:fs/promises");
+    const real = await realpath(allowed);
+    clearAssetFolders();
+    clearImageCache();
+    await allowAssetFolder(allowed);
+    const html = `<img src="${toAssetUrl(join(real, "obrazek.png"))}">`;
+    expect(await embedLocalImages(html, docPath)).toContain("data:image/png;base64,");
+  });
+
+  it.runIf(process.platform === "win32")(
+    "serves an image from a folder registered by its 8.3 short name",
+    async () => {
+      // This is the CI failure itself: the runner's temp folder arrives as
+      // RUNNER~1 and resolves to runneradmin. A folder with a long name has a
+      // short alias on any NTFS volume, so the condition can be built here.
+      const { execFileSync } = await import("node:child_process");
+      const { mkdir } = await import("node:fs/promises");
+      const longFolder = join(tmpdir(), `Studio Markdown dlugi folder ${Date.now()}`);
+      await mkdir(longFolder, { recursive: true });
+      await writeFile(join(longFolder, "obrazek.png"), PNG);
+      try {
+        const short = execFileSync(
+          "powershell.exe",
+          [
+            "-NoProfile",
+            "-Command",
+            `(New-Object -ComObject Scripting.FileSystemObject).GetFolder('${longFolder}').ShortPath`
+          ],
+          { encoding: "utf8" }
+        ).trim();
+        if (!short || short.toLowerCase() === longFolder.toLowerCase()) return;
+
+        clearAssetFolders();
+        clearImageCache();
+        await allowAssetFolder(short);
+        const html = `<img src="${toAssetUrl(join(short, "obrazek.png"))}">`;
+        expect(await embedLocalImages(html, docPath)).toContain("data:image/png;base64,");
+      } finally {
+        await rm(longFolder, { recursive: true, force: true });
+      }
+    }
+  );
+
   it("refuses everything when no folder has been granted", async () => {
     clearAssetFolders();
     clearImageCache();
