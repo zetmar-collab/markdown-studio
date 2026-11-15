@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -37,7 +37,7 @@ describe("embedLocalImages — ograniczenie dostępu", () => {
 
     clearImageCache();
     clearAssetFolders();
-    allowAssetFolder(allowed);
+    await allowAssetFolder(allowed);
   });
 
   afterAll(async () => {
@@ -76,11 +76,26 @@ describe("embedLocalImages — ograniczenie dostępu", () => {
     expect(await embedLocalImages(html, docPath)).not.toContain("base64");
   });
 
+  it("refuses a symlink that leaves the allowed folder", async () => {
+    // A repository of Markdown files can carry symlinks, so a purely lexical
+    // check would pass while the read followed the link somewhere else.
+    const link = join(allowed, "podszywka.png");
+    try {
+      await symlink(join(forbidden, "cudzy.png"), link);
+    } catch {
+      // Windows refuses symlinks without the right privileges; nothing to test.
+      return;
+    }
+    clearImageCache();
+    const html = `<img src="${toAssetUrl(link)}">`;
+    expect(await embedLocalImages(html, docPath)).not.toContain("base64");
+  });
+
   it("refuses everything when no folder has been granted", async () => {
     clearAssetFolders();
     clearImageCache();
     const html = `<img src="${toAssetUrl(join(allowed, "obrazek.png"))}">`;
     expect(await embedLocalImages(html, docPath)).not.toContain("base64");
-    allowAssetFolder(allowed);
+    await allowAssetFolder(allowed);
   });
 });

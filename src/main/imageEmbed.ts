@@ -1,4 +1,4 @@
-import { readFile, stat } from "node:fs/promises";
+import { open } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fromAssetUrl } from "../shared/assetProtocol.js";
 import { imageMimeFor } from "../shared/imageTypes.js";
@@ -34,30 +34,38 @@ function rememberInCache(key: string, entry: CacheEntry) {
 }
 
 async function toDataUrl(localPath: string): Promise<string | null> {
-  let info;
+  const mime = imageMimeFor(localPath);
+  // Falling back to image/png for an unknown extension meant any file at all
+  // was read and base64-inlined into the export.
+  if (!mime) return null;
+
+  // One handle for the check and the read, so nothing can swap the file in
+  // between — a symlink pointed somewhere else after the permission check
+  // would otherwise be read instead.
+  let handle;
   try {
-    info = await stat(localPath);
+    handle = await open(localPath, "r");
   } catch {
     return null;
   }
-  if (!info.isFile()) return null;
-
-  const cached = cache.get(localPath);
-  if (cached && cached.mtimeMs === info.mtimeMs && cached.size === info.size) {
-    return cached.dataUrl;
-  }
 
   try {
-    const mime = imageMimeFor(localPath);
-    // Falling back to image/png for an unknown extension meant any file at all
-    // was read and base64-inlined into the export.
-    if (!mime) return null;
-    const data = await readFile(localPath);
+    const info = await handle.stat();
+    if (!info.isFile()) return null;
+
+    const cached = cache.get(localPath);
+    if (cached && cached.mtimeMs === info.mtimeMs && cached.size === info.size) {
+      return cached.dataUrl;
+    }
+
+    const data = await handle.readFile();
     const dataUrl = `data:${mime};base64,${data.toString("base64")}`;
     rememberInCache(localPath, { mtimeMs: info.mtimeMs, size: info.size, dataUrl });
     return dataUrl;
   } catch {
     return null;
+  } finally {
+    await handle.close().catch(() => {});
   }
 }
 
@@ -101,10 +109,11 @@ export async function embedLocalImages(html: string, docFilePath?: string | null
   const wanted = new Map<string, string>();
   for (const match of matches) {
     const localPath = resolveLocalImagePath(match[2], docFilePath);
+    if (!localPath) continue;
     // The same gate the preview's asset scheme applies. Without it an untrusted
     // document could name any path on the machine and have its contents
     // embedded in the exported file.
-    if (localPath && isAllowedAssetPath(localPath)) wanted.set(match[2], localPath);
+    if (await isAllowedAssetPath(localPath)) wanted.set(match[2], localPath);
   }
   const resolved = new Map<string, string>();
   await Promise.all(

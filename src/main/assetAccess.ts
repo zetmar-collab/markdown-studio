@@ -1,20 +1,23 @@
 /**
- * What the `md-asset://` scheme is allowed to serve.
+ * What the `md-asset://` scheme and the exports are allowed to read.
  *
  * The scheme exists so the preview can show images next to the document
  * without base64-inlining them on every keystroke. Its handler used to decode
  * whatever path the URL carried and stream it back, which made every file on
- * the machine readable through an `<img src>`. With Markdown rendered with
- * `html: false` that was hard to exploit on its own, but it was one layer away
- * from being the exfiltration half of a bigger problem.
+ * the machine readable through an `<img src>`, and the export path did the
+ * same thing while turning the file into base64 inside the produced PDF.
  *
- * Two limits now: the file has to be an image, and it has to live under a
- * folder the user actually opened a document from.
+ * Three limits now: the file has to be an image, it has to live under a folder
+ * the user actually opened a document from, and it is judged by where it
+ * really is — a symbolic link that leaves the folder leaves the permission
+ * behind too. A repository of Markdown files can carry symlinks, so a lexical
+ * check alone would be a hole with a plausible way in.
  */
+import { realpath } from "node:fs/promises";
 import { resolve, sep } from "node:path";
 import { isImagePath } from "../shared/imageTypes.js";
 
-/** Folders of documents opened or saved this session. */
+/** Real paths of folders documents were opened or saved from. */
 const roots = new Set<string>();
 
 /** Windows paths differ only by case; compare them that way. */
@@ -23,33 +26,47 @@ function normalize(path: string): string {
   return process.platform === "win32" ? resolved.toLowerCase() : resolved;
 }
 
-/** Let the preview of a document reach images stored beside it. */
-export function allowAssetFolder(folderPath: string): void {
+/**
+ * The path with every link followed.
+ *
+ * Falls back to the lexical form when the target does not exist — nothing can
+ * be read from it anyway, and the caller still gets a definite answer.
+ */
+async function realOrLexical(path: string): Promise<string> {
+  try {
+    return normalize(await realpath(path));
+  } catch {
+    return normalize(path);
+  }
+}
+
+/** Let the preview and the exports reach images stored beside a document. */
+export async function allowAssetFolder(folderPath: string): Promise<void> {
   if (!folderPath) return;
-  roots.add(normalize(folderPath));
+  roots.add(await realOrLexical(folderPath));
 }
 
 export function clearAssetFolders(): void {
   roots.clear();
 }
 
-function isUnderAllowedRoot(path: string): boolean {
-  const target = normalize(path);
+function isUnderAllowedRoot(realPath: string): boolean {
   for (const root of roots) {
-    if (target === root) return true;
-    if (target.startsWith(root.endsWith(sep) ? root : root + sep)) return true;
+    if (realPath === root) return true;
+    if (realPath.startsWith(root.endsWith(sep) ? root : root + sep)) return true;
   }
   return false;
 }
 
 /**
- * May this path be streamed to the preview?
+ * May this path be read on behalf of a document?
  *
- * `resolve` collapses `..` before the comparison, so a path that climbs out of
- * an allowed folder is judged by where it actually lands.
+ * The extension is judged on the name the document used, and the location on
+ * the path with links resolved, so neither a `..` climb nor a symlink out of
+ * the folder gets through.
  */
-export function isAllowedAssetPath(path: string): boolean {
+export async function isAllowedAssetPath(path: string): Promise<boolean> {
   if (!path) return false;
   if (!isImagePath(path)) return false;
-  return isUnderAllowedRoot(path);
+  return isUnderAllowedRoot(await realOrLexical(path));
 }

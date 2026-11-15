@@ -211,7 +211,7 @@ function registerAssetProtocol() {
     if (!filePath) return new Response("Not found", { status: 404 });
     // An <img src> must not become a way to read arbitrary files: only images,
     // and only from a folder the user opened a document from.
-    if (!isAllowedAssetPath(filePath)) return new Response("Forbidden", { status: 403 });
+    if (!(await isAllowedAssetPath(filePath))) return new Response("Forbidden", { status: 403 });
     try {
       return await net.fetch(pathToFileURL(filePath).toString());
     } catch {
@@ -619,7 +619,7 @@ async function pickSavePath(
 /** Remember a document in the Windows jump list / recent documents. */
 function rememberRecentDocument(filePath: string) {
   // Opening a document is what grants its folder to the asset scheme.
-  allowAssetFolder(dirname(filePath));
+  void allowAssetFolder(dirname(filePath));
   try {
     app.addRecentDocument(filePath);
   } catch {
@@ -1003,7 +1003,7 @@ ipcMain.handle("image:pickFile", async (event) => {
   if (result.canceled || result.filePaths.length === 0) return null;
   // The user picked this image themselves, so the preview may show it even
   // when it sits outside the document's own folder.
-  allowAssetFolder(dirname(result.filePaths[0]));
+  await allowAssetFolder(dirname(result.filePaths[0]));
   return result.filePaths[0];
 });
 

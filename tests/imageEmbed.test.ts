@@ -41,7 +41,7 @@ describe("embedLocalImages", () => {
     // Opening a document is what grants its folder; the tests have to do the
     // same or the export gate refuses every path, as it should.
     clearAssetFolders();
-    allowAssetFolder(root);
+    await allowAssetFolder(root);
     imagePath = join(root, "pic.png");
     docPath = join(root, "note.md");
     await writeFile(imagePath, PNG);
