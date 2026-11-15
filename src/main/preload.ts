@@ -56,6 +56,13 @@ contextBridge.exposeInMainWorld("markdownStudio", {
   listVersions: (filePath: string) => ipcRenderer.invoke("history:list", filePath),
   readVersion: (filePath: string, id: number) => ipcRenderer.invoke("history:read", filePath, id),
   clearHistory: (filePath: string) => ipcRenderer.invoke("history:clear", filePath),
+  /* szablony użytkownika */
+  listTemplates: () => ipcRenderer.invoke("templates:list"),
+  readTemplate: (fileName: string) => ipcRenderer.invoke("templates:read", fileName),
+  saveTemplate: (name: string, content: string) =>
+    ipcRenderer.invoke("templates:save", name, content),
+  deleteTemplate: (fileName: string) => ipcRenderer.invoke("templates:delete", fileName),
+  openTemplatesFolder: () => ipcRenderer.invoke("templates:openFolder"),
 
   /* settings + session */
   getSettings: () => ipcRenderer.invoke("settings:get"),

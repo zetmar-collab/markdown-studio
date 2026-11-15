@@ -38,11 +38,19 @@ import { readRecentFiles, readSession, writeRecentFiles, writeSession } from "./
 import { forgetOwnWrite, noteOwnWrite, watchFile, type WatchHandle } from "./fileWatchers.js";
 import { cleanupTempFiles } from "./tempFiles.js";
 import { listFolder } from "./fileTree.js";
-import { buildRecentMenuEntries } from "./recentMenu.js";
+import { buildRecentMenuEntries, escapeMenuLabel } from "./recentMenu.js";
 import { guardWindowNavigation } from "./externalLinks.js";
 import { allowAssetFolder, isAllowedAssetPath } from "./assetAccess.js";
 import { registerExportHandlers } from "./exportDocuments.js";
 import { clearHistory, listVersions, readVersion, recordVersion } from "./documentHistory.js";
+import {
+  deleteTemplate,
+  listTemplates,
+  openTemplatesFolder,
+  readTemplate,
+  saveTemplate,
+  type UserTemplate
+} from "./userTemplates.js";
 import { installDictionary, installedDictionaries } from "./dictionaryInstall.js";
 import {
   checkForUpdates,
@@ -88,6 +96,27 @@ const windows = new Map<number, WindowState>();
  * whenever the list changes.
  */
 let recentFilesCache: string[] = [];
+
+/**
+ * The native menu is built synchronously, so the templates on disk are read
+ * once and kept, exactly like the recent files list.
+ */
+let userTemplatesCache: UserTemplate[] = [];
+
+function userTemplatesSubmenu(): MenuItemConstructorOptions[] {
+  if (userTemplatesCache.length === 0) {
+    return [{ label: t("template.noneOwn"), enabled: false }];
+  }
+  return userTemplatesCache.map((template) => ({
+    label: escapeMenuLabel(template.name),
+    click: () => sendMenuAction(`templateUser:${template.fileName}`)
+  }));
+}
+
+async function refreshUserTemplates(): Promise<void> {
+  userTemplatesCache = await listTemplates();
+  setupApplicationMenu();
+}
 
 function t(key: TranslationKey, params?: Record<string, string | number>): string {
   return createTranslator(getSettings().language)(key, params);
@@ -479,7 +508,12 @@ function menuTemplate(): MenuItemConstructorOptions[] {
         { label: t("template.blank"), click: () => sendMenuAction("templateBlank") },
         { label: t("template.meeting"), click: () => sendMenuAction("templateMeeting") },
         { label: t("template.article"), click: () => sendMenuAction("templateArticle") },
-        { label: t("template.project"), click: () => sendMenuAction("templateProject") }
+        { label: t("template.project"), click: () => sendMenuAction("templateProject") },
+        { type: "separator" },
+        ...userTemplatesSubmenu(),
+        { type: "separator" },
+        { label: t("template.saveCurrent"), click: () => sendMenuAction("templateSaveCurrent") },
+        { label: t("template.openFolder"), click: () => void openTemplatesFolder() }
       ]
     },
     {
@@ -790,6 +824,28 @@ ipcMain.handle("app:showError", (event, title: string, detail: string) => {
   else void dialog.showMessageBox(options);
 });
 
+ipcMain.handle("templates:list", async () => listTemplates());
+
+ipcMain.handle("templates:read", async (_event, fileName: unknown) =>
+  typeof fileName === "string" ? readTemplate(fileName) : null
+);
+
+ipcMain.handle("templates:save", async (_event, name: unknown, content: unknown) => {
+  if (typeof name !== "string" || typeof content !== "string") return null;
+  const saved = await saveTemplate(name, content);
+  if (saved) await refreshUserTemplates();
+  return saved;
+});
+
+ipcMain.handle("templates:delete", async (_event, fileName: unknown) => {
+  if (typeof fileName !== "string") return false;
+  const removed = await deleteTemplate(fileName);
+  if (removed) await refreshUserTemplates();
+  return removed;
+});
+
+ipcMain.handle("templates:openFolder", async () => openTemplatesFolder());
+
 ipcMain.handle("history:list", async (_event, filePath: unknown) =>
   typeof filePath === "string" ? listVersions(filePath) : []
 );
@@ -1016,6 +1072,7 @@ app.whenReady().then(async () => {
   recentFilesCache = await readRecentFiles();
   registerAssetProtocol();
   setupApplicationMenu();
+  void refreshUserTemplates();
   setupJumpList();
 
   createWindow(findMarkdownArgument(process.argv));

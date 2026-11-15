@@ -325,6 +325,15 @@ export function useTabManager(
     void window.markdownStudio.setTitle(titleFor(untitled));
   }, [addTab, setStatus, t, titleFor, untitled]);
 
+  /** A new tab from a template the user keeps on disk. */
+  const newDocumentFromContent = useCallback(
+    (content: string, name: string) => {
+      addTab({ content });
+      setStatus(t("status.createdFrom", { name }));
+    },
+    [addTab, setStatus, t]
+  );
+
   const newDocumentFromTemplate = useCallback(
     (templateId: DocumentTemplateId) => {
       addTab({ content: templateContent(templateId, settings.language) });
@@ -471,6 +480,7 @@ ${result.error}`
     loadStartupFile,
     newDocument,
     newDocumentFromTemplate,
+    newDocumentFromContent,
     open,
     openRecentFile,
     save,
