@@ -147,6 +147,7 @@ export interface ElectronApi {
   /* folders */
   pickFolder: () => Promise<string | null>;
   listFolder: (folderPath: string) => Promise<FileTreeEntry[]>;
+  listMarkdownFiles: (folderPath: string) => Promise<string[]>;
   listVersions: (filePath: string) => Promise<HistoryEntry[]>;
   readVersion: (filePath: string, id: number) => Promise<string | null>;
   clearHistory: (filePath: string) => Promise<void>;

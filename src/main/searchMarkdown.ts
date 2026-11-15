@@ -47,6 +47,13 @@ async function walkMarkdownFiles(dir: string, files: string[], depth: number): P
   }
 }
 
+/** Every Markdown file under `folder`, for the batch export. */
+export async function listMarkdownFiles(folder: string): Promise<string[]> {
+  const files: string[] = [];
+  await walkMarkdownFiles(resolve(folder), files, 0);
+  return files.sort((a, b) => a.localeCompare(b));
+}
+
 export function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

@@ -44,8 +44,10 @@ import { CompareDialog } from "./components/CompareDialog";
 import { NamePromptDialog } from "./components/NamePromptDialog";
 import { StatsDialog } from "./components/StatsDialog";
 import { PresentationView } from "./components/PresentationView";
+import { BatchExportDialog } from "./components/BatchExportDialog";
 import { splitSlides } from "../shared/slides";
-import { renderMarkdownBody } from "./utils/markdownRenderer";
+import { escapeHtml, renderMarkdownBody } from "./utils/markdownRenderer";
+import { rewriteAssetUrls } from "./utils/assetUrls";
 import { useWritingStats } from "./hooks/useWritingStats";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { WorkspaceSearch } from "./components/WorkspaceSearch";
@@ -123,6 +125,7 @@ function App() {
   const [showTemplateName, setShowTemplateName] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [presenting, setPresenting] = useState(false);
+  const [showBatchExport, setShowBatchExport] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [contextTarget, setContextTarget] = useState<ContextTarget>("editor");
   const [workspaceSearchOpen, setWorkspaceSearchOpen] = useState(false);
@@ -282,6 +285,54 @@ function App() {
 
   const menuHandlerRef = useRef<(action: string) => void>(() => {});
 
+  /**
+   * Several documents as one PDF, with a table of contents in front.
+   *
+   * Each file is rendered on its own so its own headings keep their anchors,
+   * then the parts are joined with a page break between them and handed to the
+   * ordinary PDF export, which keeps the user's page setup.
+   */
+  async function exportCombinedPdf(paths: readonly string[]) {
+    try {
+      const parts: string[] = [];
+      const contents: string[] = [];
+      for (let index = 0; index < paths.length; index += 1) {
+        const path = paths[index];
+        const file = await window.markdownStudio.openFilePath(path);
+        if (!file) continue;
+        const anchorId = `dokument-${index + 1}`;
+        const title = file.fileName.replace(/\.(md|markdown|mdown|mkd)$/i, "");
+        contents.push(`<li><a href="#${anchorId}">${escapeHtml(title)}</a></li>`);
+        const body = rewriteAssetUrls(
+          renderMarkdownBody(file.content, {
+            math: settings.mathEnabled,
+            mermaid: settings.mermaidEnabled
+          }),
+          file.filePath
+        );
+        parts.push(
+          `<section id="${anchorId}" style="page-break-after: always; break-after: page;">${body}</section>`
+        );
+      }
+      if (parts.length === 0) return;
+
+      const toc =
+        `<section style="page-break-after: always; break-after: page;">` +
+        `<h1>${escapeHtml(t("batch.contents"))}</h1><ol>${contents.join("")}</ol></section>`;
+      const result = await window.markdownStudio.exportPdf({
+        filePath,
+        html: toc + parts.join(""),
+        title: t("batch.title"),
+        theme
+      });
+      if (result) setStatus(t("batch.done", { path: result.filePath }));
+    } catch (error) {
+      setStatus(
+        t("batch.failed", { message: error instanceof Error ? error.message : String(error) })
+      );
+    }
+  }
+
   async function pickTreeFolder() {
     const folder = await window.markdownStudio.pickFolder();
     if (folder) {
@@ -345,6 +396,9 @@ function App() {
         setStatus(t("presentation.started", { count: slides.length }));
         break;
       }
+      case "batchExport":
+        setShowBatchExport(true);
+        break;
       case "presentationPdf": {
         const { slides } = splitSlides(content);
         void exportSlidesPdf(
@@ -818,6 +872,23 @@ function App() {
             );
           }}
           onClose={() => setShowHistory(false)}
+          t={t}
+        />
+      )}
+
+      {showBatchExport && (
+        <BatchExportDialog
+          folderPath={treeRoot}
+          onPickFolder={async () => {
+            const folder = await window.markdownStudio.pickFolder();
+            if (folder) setTreeRoot(folder);
+            return folder;
+          }}
+          onExport={async (paths) => {
+            setShowBatchExport(false);
+            await exportCombinedPdf(paths);
+          }}
+          onClose={() => setShowBatchExport(false)}
           t={t}
         />
       )}
