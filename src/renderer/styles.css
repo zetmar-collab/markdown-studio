@@ -7,6 +7,8 @@
   --text: #f5f7fb;
   --muted: #9da6b5;
   --border: #2d3340;
+  /* A border that is the only boundary of a control; 3:1 against its background. */
+  --border-strong: #5a6679;
   --accent: #4da3ff;
   --accent-strong: #2f86e7;
   --editor-bg: #151821;
@@ -28,9 +30,10 @@
   --surface: #ffffff;
   --surface-strong: #e8edf5;
   --text: #1d2430;
-  --muted: #687385;
+  --muted: #5b6676;
   --border: #d7dde8;
-  --accent: #1f73d8;
+  --border-strong: #7c8798;
+  --accent: #1b66c2;
   --accent-strong: #165db1;
   --editor-bg: #ffffff;
   --preview-bg: #ffffff;
@@ -69,7 +72,7 @@ input {
 }
 
 button {
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   background: var(--surface);
   color: var(--text);
   border-radius: 7px;
@@ -98,7 +101,7 @@ button:active {
 input {
   height: 32px;
   min-width: 130px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: 7px;
   padding: 0 10px;
   background: var(--bg);
@@ -108,6 +111,25 @@ input {
 
 input:focus {
   border-color: var(--accent);
+}
+
+/*
+ * A focus ring for people using the keyboard.
+ *
+ * Text fields had `outline: none` and nothing but a border colour change to
+ * show focus — against a 1.4:1 border that was effectively invisible.
+ * `:focus-visible` leaves mouse clicks alone, so the interface looks exactly
+ * as it did while somebody moving through it with Tab can see where they are.
+ */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="option"]:focus-visible,
+[role="menuitem"]:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .app-shell {
@@ -123,7 +145,7 @@ input:focus {
 
 .topbar {
   display: grid;
-  grid-template-columns: minmax(250px, 330px) minmax(0, 1fr) auto;
+  grid-template-columns: minmax(190px, 290px) minmax(0, 1fr) auto;
   align-items: center;
   gap: 16px;
   padding: 12px 16px;
@@ -173,12 +195,36 @@ input:focus {
 }
 
 .toolbar {
+  gap: 6px;
+}
+
+/*
+ * The file actions are wider than the space between the brand block and the
+ * view controls, so the strip scrolls. A bare scrollbar under the buttons read
+ * as a broken layout, so it is hidden and the overflow is shown the way a
+ * scrollable strip usually is: the content fades out at the edge it continues
+ * past.
+ */
+.toolbar {
   overflow-x: auto;
-  scrollbar-width: thin;
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 14px,
+    #000 calc(100% - 14px),
+    transparent 100%
+  );
+}
+
+.toolbar::-webkit-scrollbar {
+  height: 0;
 }
 
 .toolbar button span {
   font-size: 13px;
+  /* One line per button; "Zapisz jako" used to be the only two-line one. */
+  white-space: nowrap;
 }
 
 .right-tools {
@@ -470,6 +516,19 @@ input:focus {
   border-bottom: 1px solid var(--border);
   background: color-mix(in srgb, var(--surface), var(--bg) 28%);
   overflow-x: auto;
+  /* Same treatment as the file actions: fade, not a scrollbar across the app. */
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 14px,
+    #000 calc(100% - 14px),
+    transparent 100%
+  );
+}
+
+.formatbar::-webkit-scrollbar {
+  height: 0;
 }
 
 .formatbar > button {
@@ -1992,4 +2051,41 @@ input:focus {
   margin: 6px 0 0;
   color: var(--muted);
   font-size: 11.5px;
+}
+
+/*
+ * Honour the system "reduce animation" setting.
+ *
+ * The app transitions buttons, nudges them down on click and scrolls smoothly
+ * to a heading. For some people movement in an interface means dizziness or
+ * nausea, and Windows has a switch for saying so.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  button:active {
+    transform: none;
+  }
+}
+
+/*
+ * Narrow windows: the file name under the title is also in the tab, in the
+ * window title and in the status bar, so it is the first thing to give up its
+ * space to the action buttons.
+ */
+@media (max-width: 1280px) {
+  .brand span {
+    display: none;
+  }
+
+  .brand h1 {
+    margin-bottom: 0;
+  }
 }
