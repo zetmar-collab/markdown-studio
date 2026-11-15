@@ -33,6 +33,39 @@ export function useExport(
     }
   }, [payload, setStatus, t]);
 
+  /**
+   * One slide per page.
+   *
+   * Goes through the ordinary PDF export, only with each slide wrapped in a
+   * section that breaks the page after it, so the page setup, margins and
+   * header stay exactly what the user configured.
+   */
+  const exportSlidesPdf = useCallback(
+    async (slidesHtml: readonly string[]) => {
+      setStatus(t("status.exportingPdf"));
+      const html = slidesHtml
+        .map(
+          (slide) =>
+            `<section style="page-break-after: always; break-after: page;">${slide}</section>`
+        )
+        .join("\n");
+      try {
+        const result = await window.markdownStudio.exportPdf({
+          filePath,
+          html,
+          title: fileName,
+          theme
+        });
+        setStatus(
+          result ? t("status.exportedPdf", { path: result.filePath }) : t("status.cancelledPdf")
+        );
+      } catch (error) {
+        setStatus(t("status.errorPdf", { message: messageOf(error) }));
+      }
+    },
+    [filePath, fileName, setStatus, t, theme]
+  );
+
   const exportHtml = useCallback(async () => {
     setStatus(t("status.exportingHtml"));
     try {
@@ -67,7 +100,7 @@ export function useExport(
     }
   }, [payload, setStatus, t]);
 
-  return { exportPdf, exportHtml, exportDocx, openPrintPreview };
+  return { exportPdf, exportSlidesPdf, exportHtml, exportDocx, openPrintPreview };
 }
 
 function messageOf(error: unknown): string {

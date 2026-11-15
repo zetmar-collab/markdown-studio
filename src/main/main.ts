@@ -425,6 +425,15 @@ function menuTemplate(): MenuItemConstructorOptions[] {
           label: t("stats.menu"),
           click: () => sendMenuAction("stats")
         },
+        {
+          label: t("presentation.menu"),
+          accelerator: "F5",
+          click: () => sendMenuAction("presentation")
+        },
+        {
+          label: t("presentation.exportPdf"),
+          click: () => sendMenuAction("presentationPdf")
+        },
         { type: "separator" },
         {
           label: t("menu.workspaceSearch"),
