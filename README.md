@@ -54,6 +54,13 @@ Wersja instalowana sprawdza aktualizacje przy starcie (można wyłączyć w Usta
 - Zakładki, sesja po restarcie, autozapis (konfigurowalny)
 - Lista 10 ostatnio otwartych plików w menu **Plik → Ostatnio otwarte**
   (przeżywa restart, martwe wpisy znikają same)
+- **Historia wersji** (`Ctrl+H`) — każdy zapis odkłada kopię w `userData/history`,
+  z porównaniem wybranej wersji z tym, co jest w edytorze, i przywracaniem
+- **Porównanie dwóch otwartych dokumentów** (Plik → Porównaj dokumenty)
+- **Własne szablony** — zwykłe pliki `.md` w `userData/templates`, widoczne w menu
+  Szablon, z zapisem bieżącego dokumentu jako szablonu
+- **Statystyki pisania** — znaki napisane dzisiaj, minuty pisania, seria dni
+  z rzędu i opcjonalny cel dzienny (Widok → Statystyki pisania)
 
 ### Podgląd
 - Diagramy **Mermaid**
@@ -67,6 +74,9 @@ Wersja instalowana sprawdza aktualizacje przy starcie (można wyłączyć w Usta
 ### Wyjście
 - Eksport **PDF**, **HTML**, **DOCX** — z ustawieniami formatu strony, marginesów,
   orientacji, nagłówka, stopki i numeracji stron
+- **Profile eksportu** — ustawienia strony zapisane pod nazwą, wracają jednym kliknięciem
+- **Eksport wielu plików do jednego PDF** ze spisem treści, każdy rozdział od nowej strony
+- **Tryb prezentacji** (`F5`) — slajdy dzielone liniami poziomymi, z eksportem do PDF
 - Podgląd wydruku w osobnym oknie
 - Kopiowanie podglądu do schowka z formatowaniem
 - Jeden motyw kolorów dla podglądu, schowka i eksportu (`src/shared/documentTheme.ts`)
@@ -99,6 +109,8 @@ w `session.json`, a lista ostatnich plików w `recent.json`.
 | `Ctrl+Shift+E` | Eksport DOCX |
 | `Ctrl+Shift+P` | Podgląd wydruku |
 | `Ctrl+,` | Ustawienia |
+| `Ctrl+H` | Historia wersji |
+| `F5` | Tryb prezentacji (`Esc` wychodzi) |
 | `F11` | Tryb skupienia (`Esc` wychodzi) |
 
 ## Dla deweloperów
@@ -135,6 +147,14 @@ npx electron scripts/spellcheck-smoke.mjs   # wpisuje literówkę i czyta menu
 
 Skrypt kończy się kodem 0 tylko wtedy, gdy menu kontekstowe faktycznie pokazało
 podpowiedzi dla błędnego słowa.
+
+Tak samo nie da się testem jednostkowym sprawdzić, że okno aplikacji nie wychodzi
+na obcą stronę po kliknięciu linku w dokumencie:
+
+```bash
+npx vite                                    # w osobnym terminalu
+npx electron scripts/navigation-smoke.mjs   # klika link i sprawdza adres okna
+```
 
 ### Architektura
 
