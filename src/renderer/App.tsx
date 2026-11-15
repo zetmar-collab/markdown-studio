@@ -3,6 +3,9 @@ import ReactDOM from "react-dom/client";
 import CodeMirror, { type ReactCodeMirrorRef } from "@uiw/react-codemirror";
 import { markdown } from "@codemirror/lang-markdown";
 import { oneDark } from "@codemirror/theme-one-dark";
+import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
+import { tags } from "@lezer/highlight";
+import { Prec } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import {
   AlignLeft,
@@ -88,6 +91,17 @@ function storeValue(key: string, value: string) {
     // A full or disabled localStorage must never break the editor.
   }
 }
+
+/**
+ * CodeMirror's light highlight style underlines headings while the dark theme
+ * does not, so the same document looked different depending on the theme for
+ * no reason anyone chose. Bold stays; the underline goes.
+ */
+const lightHeadings = Prec.high(
+  syntaxHighlighting(
+    HighlightStyle.define([{ tag: tags.heading, textDecoration: "none", fontWeight: "600" }])
+  )
+);
 
 function App() {
   const editorRef = useRef<ReactCodeMirrorRef>(null);
@@ -175,6 +189,7 @@ function App() {
     () => [
       markdown(),
       EditorView.lineWrapping,
+      ...(theme === "light" ? [lightHeadings] : []),
       // CodeMirror turns spellcheck off on its content element by default, so
       // Chromium never underlines anything until we turn it back on.
       EditorView.contentAttributes.of({
@@ -191,7 +206,7 @@ function App() {
       }),
       ...editor.clipboardExtension
     ],
-    [editor.clipboardExtension, settings.editorFontSize, settings.spellcheckEnabled]
+    [editor.clipboardExtension, settings.editorFontSize, settings.spellcheckEnabled, theme]
   );
 
   useEffect(() => {
