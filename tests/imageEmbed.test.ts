@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { clearImageCache, embedLocalImages, resolveLocalImagePath } from "../src/main/imageEmbed";
 import { toAssetUrl } from "../src/shared/assetProtocol";
+import { allowAssetFolder, clearAssetFolders } from "../src/main/assetAccess";
 
 const PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
@@ -37,6 +38,10 @@ describe("embedLocalImages", () => {
 
   beforeAll(async () => {
     root = await mkdtemp(join(tmpdir(), "ms-img-"));
+    // Opening a document is what grants its folder; the tests have to do the
+    // same or the export gate refuses every path, as it should.
+    clearAssetFolders();
+    allowAssetFolder(root);
     imagePath = join(root, "pic.png");
     docPath = join(root, "note.md");
     await writeFile(imagePath, PNG);

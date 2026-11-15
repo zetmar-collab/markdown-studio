@@ -1,7 +1,8 @@
 import { readFile, stat } from "node:fs/promises";
-import { dirname, extname, resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { fromAssetUrl } from "../shared/assetProtocol.js";
-import { IMAGE_MIME } from "../shared/imageTypes.js";
+import { imageMimeFor } from "../shared/imageTypes.js";
+import { isAllowedAssetPath } from "./assetAccess.js";
 
 interface CacheEntry {
   mtimeMs: number;
@@ -47,9 +48,11 @@ async function toDataUrl(localPath: string): Promise<string | null> {
   }
 
   try {
+    const mime = imageMimeFor(localPath);
+    // Falling back to image/png for an unknown extension meant any file at all
+    // was read and base64-inlined into the export.
+    if (!mime) return null;
     const data = await readFile(localPath);
-    const ext = extname(localPath).replace(".", "").toLowerCase();
-    const mime = IMAGE_MIME[ext] ?? "image/png";
     const dataUrl = `data:${mime};base64,${data.toString("base64")}`;
     rememberInCache(localPath, { mtimeMs: info.mtimeMs, size: info.size, dataUrl });
     return dataUrl;
@@ -98,7 +101,10 @@ export async function embedLocalImages(html: string, docFilePath?: string | null
   const wanted = new Map<string, string>();
   for (const match of matches) {
     const localPath = resolveLocalImagePath(match[2], docFilePath);
-    if (localPath) wanted.set(match[2], localPath);
+    // The same gate the preview's asset scheme applies. Without it an untrusted
+    // document could name any path on the machine and have its contents
+    // embedded in the exported file.
+    if (localPath && isAllowedAssetPath(localPath)) wanted.set(match[2], localPath);
   }
   const resolved = new Map<string, string>();
   await Promise.all(
