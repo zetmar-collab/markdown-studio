@@ -32,9 +32,17 @@ describe("splitSlides", () => {
   });
 
   it("takes front matter off the top instead of showing it", () => {
-    const markdown = ["---", "title: Prezentacja", "---", "", "# Pierwszy", "", "---", "", "# Drugi"].join(
-      "\n"
-    );
+    const markdown = [
+      "---",
+      "title: Prezentacja",
+      "---",
+      "",
+      "# Pierwszy",
+      "",
+      "---",
+      "",
+      "# Drugi"
+    ].join("\n");
     const result = splitSlides(markdown);
     expect(result.frontMatter).toBe("title: Prezentacja");
     expect(result.slides).toEqual(["# Pierwszy", "# Drugi"]);
