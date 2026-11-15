@@ -63,6 +63,9 @@ contextBridge.exposeInMainWorld("markdownStudio", {
     ipcRenderer.invoke("templates:save", name, content),
   deleteTemplate: (fileName: string) => ipcRenderer.invoke("templates:delete", fileName),
   openTemplatesFolder: () => ipcRenderer.invoke("templates:openFolder"),
+  /* statystyki pisania */
+  readWritingStats: () => ipcRenderer.invoke("stats:read"),
+  writeWritingStats: (stats: unknown) => ipcRenderer.invoke("stats:write", stats),
 
   /* settings + session */
   getSettings: () => ipcRenderer.invoke("settings:get"),

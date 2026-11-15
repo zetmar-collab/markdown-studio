@@ -42,6 +42,8 @@ import { TableDialog } from "./components/TableDialog";
 import { HistoryDialog } from "./components/HistoryDialog";
 import { CompareDialog } from "./components/CompareDialog";
 import { NamePromptDialog } from "./components/NamePromptDialog";
+import { StatsDialog } from "./components/StatsDialog";
+import { useWritingStats } from "./hooks/useWritingStats";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { WorkspaceSearch } from "./components/WorkspaceSearch";
 import { Outline } from "./components/Outline";
@@ -116,6 +118,7 @@ function App() {
   const [showHistory, setShowHistory] = useState(false);
   const [showCompare, setShowCompare] = useState(false);
   const [showTemplateName, setShowTemplateName] = useState(false);
+  const [showStats, setShowStats] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [contextTarget, setContextTarget] = useState<ContextTarget>("editor");
   const [workspaceSearchOpen, setWorkspaceSearchOpen] = useState(false);
@@ -153,6 +156,9 @@ function App() {
   );
 
   useScrollSync(editorRef, previewRef, viewMode, html);
+
+  // Counts only how much the document grew; the text itself goes nowhere.
+  const writing = useWritingStats(content, loaded);
 
   useEffect(() => {
     if (loaded) setStatus((current) => (current === "…" ? t("app.ready") : current));
@@ -325,6 +331,9 @@ function App() {
         break;
       case "templateSaveCurrent":
         setShowTemplateName(true);
+        break;
+      case "stats":
+        setShowStats(true);
         break;
       case "printPreview":
         void openPrintPreview();
@@ -787,6 +796,18 @@ function App() {
             );
           }}
           onClose={() => setShowHistory(false)}
+          t={t}
+        />
+      )}
+
+      {showStats && (
+        <StatsDialog
+          stats={writing.stats}
+          today={writing.today}
+          streak={writing.streak}
+          language={settings.language}
+          onSetGoal={writing.setDailyGoal}
+          onClose={() => setShowStats(false)}
           t={t}
         />
       )}

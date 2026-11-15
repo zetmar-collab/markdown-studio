@@ -35,6 +35,8 @@ import {
   updateSettings
 } from "./settingsStore.js";
 import { readRecentFiles, readSession, writeRecentFiles, writeSession } from "./sessionStore.js";
+import { readJsonFile, writeJsonFile } from "./jsonStore.js";
+import { EMPTY_STATS, normalizeStats } from "../shared/writingStats.js";
 import { forgetOwnWrite, noteOwnWrite, watchFile, type WatchHandle } from "./fileWatchers.js";
 import { cleanupTempFiles } from "./tempFiles.js";
 import { listFolder } from "./fileTree.js";
@@ -418,6 +420,10 @@ function menuTemplate(): MenuItemConstructorOptions[] {
         {
           label: t("compare.menu"),
           click: () => sendMenuAction("compare")
+        },
+        {
+          label: t("stats.menu"),
+          click: () => sendMenuAction("stats")
         },
         { type: "separator" },
         {
@@ -822,6 +828,16 @@ ipcMain.handle("app:showError", (event, title: string, detail: string) => {
   };
   if (win) void dialog.showMessageBox(win, options);
   else void dialog.showMessageBox(options);
+});
+
+ipcMain.handle("stats:read", async () =>
+  normalizeStats(await readJsonFile("writing-stats.json", EMPTY_STATS))
+);
+
+ipcMain.handle("stats:write", async (_event, raw: unknown) => {
+  const stats = normalizeStats(raw);
+  await writeJsonFile("writing-stats.json", stats);
+  return stats;
 });
 
 ipcMain.handle("templates:list", async () => listTemplates());

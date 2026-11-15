@@ -1,5 +1,7 @@
 import type { AppSettings } from "../shared/settings";
 
+import type { WritingStats } from "../shared/writingStats";
+
 export type AppTheme = "light" | "dark";
 
 /** One saved copy of a document kept by the local version history. */
@@ -153,6 +155,8 @@ export interface ElectronApi {
   saveTemplate: (name: string, content: string) => Promise<UserTemplate | null>;
   deleteTemplate: (fileName: string) => Promise<boolean>;
   openTemplatesFolder: () => Promise<void>;
+  readWritingStats: () => Promise<WritingStats>;
+  writeWritingStats: (stats: WritingStats) => Promise<WritingStats>;
 
   /* settings + session */
   getSettings: () => Promise<AppSettings>;
